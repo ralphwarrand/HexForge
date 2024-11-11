@@ -2,12 +2,14 @@
 
 int main(){
 
-	Hex::ApplicationSpecification spec;
+	Hex::AppSpecification spec;
 	spec.name = "Sandbox";
-	spec.height = 500;
-	spec.width = 800;
+	spec.width = 1920;
+	spec.height = 1080;
+	spec.fullscreen = false;
 
 	const auto application = Hex::Application(spec);
+	application.Run();
 	
 	return 0;
 }

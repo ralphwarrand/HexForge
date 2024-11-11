@@ -1,23 +1,30 @@
 ﻿#pragma once
+
+//Lib
+#include <GL/glew.h>
+#include <glm/fwd.hpp>
+
+//STL
 #include <string>
 #include <unordered_map>
-#include <GL/glew.h>
-#include <glm/glm.hpp>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 
 namespace Hex
 {
     class Shader{
     public:
-        Shader(const std::string& vertexPath, const std::string& fragmentPath);
+        Shader(const std::string& vertex_path, const std::string& fragment_path);
         ~Shader();
 
-        void Bind() const;
-        void Unbind() const;
+        Shader(const Shader&) = default;
+        Shader(Shader&&)  noexcept = default;
 
-        GLuint GetProgramID();
+        Shader& operator = (const Shader&) = default;
+        Shader& operator = (Shader&&) = default;
+
+        void Bind() const;
+        static void Unbind();
+
+        [[nodiscard]] GLuint GetProgramID() const;
 
         // Uniform setting methods
         void SetUniform1i(const std::string& name, int value);
@@ -26,12 +33,12 @@ namespace Hex
         void SetUniformMat4(const std::string& name, const glm::mat4& matrix);
 
     private:
-        GLuint m_programID;
-        std::unordered_map<std::string, GLint> m_uniformLocationCache;
+        GLuint m_program_id;
+        std::unordered_map<std::string, GLint> m_uniform_location_cache;
 
-        std::string LoadShaderSource(const std::string& filepath);
-        GLuint CompileShader(GLenum type, const std::string& source);
-        void LinkProgram(GLuint vertexShader, GLuint fragmentShader);
+        static std::string LoadShaderSource(const std::string& filepath);
+        static GLuint CompileShader(GLenum type, const std::string& source);
+        void LinkProgram(GLuint vertex_shader, GLuint fragment_shader) const;
         GLint GetUniformLocation(const std::string& name);
     };
 }

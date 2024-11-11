@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+//Lib
 #include <glm/glm.hpp>
 
 struct GLFWwindow;
@@ -12,8 +13,14 @@ namespace Hex
 		Camera(glm::vec3 position, float yaw, float pitch);
 		~Camera();
 
-		glm::mat4 GetViewMatrix() const;
-		glm::mat4 GetProjectionMatrix() const;
+		Camera(const Camera&) = delete;
+		Camera(Camera&&) = delete;
+
+		Camera& operator = (const Camera&) = delete;
+		Camera& operator = (Camera&&) = delete;
+
+		[[nodiscard]] glm::mat4 GetViewMatrix() const;
+		[[nodiscard]] glm::mat4 GetProjectionMatrix() const;
 
 		void ProcessKeyboardInput(GLFWwindow* window, const float& delta_time);
 		void ProcessMouseInput(float x_offset, float y_offset, const bool constrain_pitch = true);

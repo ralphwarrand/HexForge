@@ -12,7 +12,7 @@
 
 namespace Hex
 {
-	Application::Application(const ApplicationSpecification& application_spec)
+	Application::Application(const AppSpecification& application_spec)
 	{
 		Init(application_spec);
 	}
@@ -27,15 +27,14 @@ namespace Hex
 		m_running = false;
 	}
 
-	void Application::Init(const ApplicationSpecification& application_spec)
+	void Application::Init(const AppSpecification& application_spec)
 	{
 		m_renderer = new Renderer(application_spec);
 		m_specification = application_spec;
 		m_running = true;
-		Run();
 	}
 
-	void Application::Run()
+	void Application::Run() const
 	{
 		float delta_time = 0.0f;
 		float last_frame = 0.0f;
@@ -44,12 +43,11 @@ namespace Hex
 		
 		while (m_running && !glfwWindowShouldClose(m_renderer->GetWindow()))
 		{
-			float current_frame = glfwGetTime();
+			const float current_frame = static_cast<float>(glfwGetTime());
 			delta_time = current_frame - last_frame;
 			last_frame = current_frame;
 			
 			m_renderer->GetCamera()->ProcessKeyboardInput(m_renderer->GetWindow(), delta_time);
-
 			m_renderer->Tick();
 
 			glfwPollEvents();

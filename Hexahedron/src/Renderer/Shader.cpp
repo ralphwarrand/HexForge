@@ -1,38 +1,48 @@
-﻿#include "Renderer/Shader.h"
+﻿//Hex
+#include "Renderer/Shader.h"
+
+//Lib
+#include <glm/glm.hpp>
+
+//STL
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 namespace Hex
 {
-    Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath) {
+    Shader::Shader(const std::string& vertex_path, const std::string& fragment_path) {
         // Load and compile shaders
-        std::string vertexSource = LoadShaderSource(vertexPath);
-        std::string fragmentSource = LoadShaderSource(fragmentPath);
-        GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vertexSource);
-        GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fragmentSource);
+        const std::string vertex_source = LoadShaderSource(vertex_path);
+        const std::string fragment_source = LoadShaderSource(fragment_path);
+        const GLuint vertex_shader = CompileShader(GL_VERTEX_SHADER, vertex_source);
+        const GLuint fragment_shader = CompileShader(GL_FRAGMENT_SHADER, fragment_source);
 
         // Link shaders into a program
-        m_programID = glCreateProgram();
-        LinkProgram(vertexShader, fragmentShader);
+        m_program_id = glCreateProgram();
+        LinkProgram(vertex_shader, fragment_shader);
 
         // Clean up shaders (no longer needed after linking)
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
+        glDeleteShader(vertex_shader);
+        glDeleteShader(fragment_shader);
     }
 
     Shader::~Shader() {
-        glDeleteProgram(m_programID);
+        glDeleteProgram(m_program_id);
     }
 
     void Shader::Bind() const {
-        glUseProgram(m_programID);
+        glUseProgram(m_program_id);
     }
 
-    void Shader::Unbind() const {
+    void Shader::Unbind()
+    {
         glUseProgram(0);
     }
 
-    GLuint Shader::GetProgramID()
+    GLuint Shader::GetProgramID() const
     {
-        return m_programID;
+        return m_program_id;
     }
 
     // Uniform setting functions
@@ -54,14 +64,14 @@ namespace Hex
 
     // Private utility functions
     std::string Shader::LoadShaderSource(const std::string& filepath) {
-        std::ifstream file(filepath);
+        const std::ifstream file(filepath);
         std::stringstream buffer;
         buffer << file.rdbuf();
         return buffer.str();
     }
 
     GLuint Shader::CompileShader(GLenum type, const std::string& source) {
-        GLuint shader = glCreateShader(type);
+        const GLuint shader = glCreateShader(type);
         const char* src = source.c_str();
         glShaderSource(shader, 1, &src, nullptr);
         glCompileShader(shader);
@@ -78,33 +88,34 @@ namespace Hex
         return shader;
     }
 
-    void Shader::LinkProgram(GLuint vertexShader, GLuint fragmentShader) {
-        glAttachShader(m_programID, vertexShader);
-        glAttachShader(m_programID, fragmentShader);
-        glLinkProgram(m_programID);
+    void Shader::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) const
+    {
+        glAttachShader(m_program_id, vertex_shader);
+        glAttachShader(m_program_id, fragment_shader);
+        glLinkProgram(m_program_id);
 
         // Check for linking errors
         GLint success;
-        glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
+        glGetProgramiv(m_program_id, GL_LINK_STATUS, &success);
         if (!success) {
             char infoLog[512];
-            glGetProgramInfoLog(m_programID, 512, nullptr, infoLog);
+            glGetProgramInfoLog(m_program_id, 512, nullptr, infoLog);
             std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
         }
     }
 
     GLint Shader::GetUniformLocation(const std::string& name) {
         // Check cache for location
-        if (m_uniformLocationCache.find(name) != m_uniformLocationCache.end()) {
-            return m_uniformLocationCache[name];
+        if (m_uniform_location_cache.find(name) != m_uniform_location_cache.end()) {
+            return m_uniform_location_cache[name];
         }
 
         // Get location and cache it
-        GLint location = glGetUniformLocation(m_programID, name.c_str());
+        const GLint location = glGetUniformLocation(m_program_id, name.c_str());
         if (location == -1) {
             std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
         }
-        m_uniformLocationCache[name] = location;
+        m_uniform_location_cache[name] = location;
         return location;
     }
 }

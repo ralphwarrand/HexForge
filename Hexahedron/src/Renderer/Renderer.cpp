@@ -12,7 +12,7 @@
 
 namespace Hex
 {
-	Renderer::Renderer(const ApplicationSpecification& application_spec)
+	Renderer::Renderer(const AppSpecification& application_spec)
 	{
 		Init(application_spec);
 		
@@ -54,7 +54,7 @@ namespace Hex
 		return m_camera;
 	}
 
-	void Renderer::Init(const ApplicationSpecification& application_spec)
+	void Renderer::Init(const AppSpecification& app_spec)
 	{
 		Log(LogLevel::Info, "Renderer Initialising...");
 		if (!glfwInit()) {
@@ -72,7 +72,15 @@ namespace Hex
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glewExperimental = GL_TRUE;
 
-		m_window = glfwCreateWindow(application_spec.width, application_spec.height, application_spec.name.c_str(), nullptr, nullptr);
+		if(app_spec.fullscreen)
+		{
+			m_window = glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), glfwGetPrimaryMonitor(), nullptr);
+		}
+		else
+		{
+			m_window = glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), nullptr, nullptr);
+		}
+		
 		if (!m_window)
 		{
 			Log(LogLevel::Fatal, "GLFW failed to create window");
@@ -80,7 +88,7 @@ namespace Hex
 			exit(EXIT_FAILURE);
 		}
 		Log(LogLevel::Info, "GLFW window created");
-
+		
 		//set callbacks
 		glfwSetErrorCallback([](const int error, const char* description)
 		{

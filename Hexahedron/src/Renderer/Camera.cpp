@@ -35,7 +35,16 @@ namespace Hex
 
 	void Camera::ProcessKeyboardInput(GLFWwindow* window, const float& delta_time)
 	{
-		float velocity = m_movement_speed * delta_time;
+		float velocity;
+		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		{
+			velocity = m_movement_speed * delta_time * 5.f;
+		}
+		else
+		{
+			velocity = m_movement_speed * delta_time;
+		}
+		
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 			m_position += m_forward * velocity;
 		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -46,10 +55,11 @@ namespace Hex
 			m_position += m_right * velocity;
 		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
 			m_position += m_up * velocity;
-		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
 			m_position += -1.f * m_up * velocity;
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
+
 	}
 
 	void Camera::ProcessMouseInput(float x_offset, float y_offset, const bool constrain_pitch)

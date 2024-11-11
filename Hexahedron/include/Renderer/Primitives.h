@@ -1,9 +1,17 @@
 ﻿#pragma once
-#include <vector>
+
+//Hex
+#include "Renderer/Shader.h"
+
+//LIB
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
-#include "Renderer/Shader.h"
+//STL
+#include <vector>
+
+
+
 
 namespace Hex
 {
@@ -13,6 +21,13 @@ namespace Hex
 	public:
 		Primitive() : m_model_matrix(glm::mat4(1.0f)) {}
 		virtual ~Primitive() = default;
+
+		Primitive(const Primitive&) = default;
+		Primitive(Primitive&&) = default;
+
+		Primitive& operator = (const Primitive&) = default;
+		Primitive& operator = (Primitive&&) = default;
+		
 		virtual void Draw() = 0;
 
 		void SetModelMatrix(const glm::mat4& model_matrix)
@@ -30,13 +45,13 @@ namespace Hex
 			this->m_shader = shader;
 		}
 	
-		[[nodiscard]] Shader* GetShaderProgram()
+		[[nodiscard]] Shader* GetShaderProgram() const
 		{
 			return m_shader;
 		}
 	
 	protected:
-		Shader* m_shader;
+		Shader* m_shader{ nullptr };
 		glm::mat4 m_model_matrix;
 	};
 
@@ -46,10 +61,11 @@ namespace Hex
 		LineBatch()
 		{
 			m_model_matrix = glm::mat4(1.0f);
-			//gen buffers
+			
+			//Gen buffers
 			glGenVertexArrays(1, &m_vao);
 			glGenBuffers(1, &m_vbo);
-			glGenBuffers(1, &m_cbo); // Color buffer
+			glGenBuffers(1, &m_cbo); //Color buffer
 
 			m_shader = new Shader("resources/shaders/line.vert", "resources/shaders/line.frag");
 		}
@@ -59,6 +75,12 @@ namespace Hex
 			glDeleteBuffers(1, &m_vbo);
 			glDeleteBuffers(1, &m_cbo);
 		}
+
+		LineBatch(const LineBatch&) = default;
+		LineBatch(LineBatch&&) = default;
+
+		LineBatch& operator = (const LineBatch&) = default;
+		LineBatch& operator = (LineBatch&&) = default;
 
 		void AddLine(const glm::vec3& start, const glm::vec3& end,  const glm::vec3& color = glm::vec3(1.0f))
 		{
@@ -76,14 +98,14 @@ namespace Hex
 			glBindVertexArray(m_vao);
 
 			glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-			glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(glm::vec3), m_vertices.data(), GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+			glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_vertices.size() * sizeof(glm::vec3)), m_vertices.data(), GL_STATIC_DRAW);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), static_cast<void*>(nullptr));
 			glEnableVertexAttribArray(0);
 
 			// Initialize color buffer
 			glBindBuffer(GL_ARRAY_BUFFER, m_cbo);
-			glBufferData(GL_ARRAY_BUFFER, m_colors.size() * sizeof(glm::vec3), m_colors.data(), GL_STATIC_DRAW);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+			glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_colors.size() * sizeof(glm::vec3)), m_colors.data(), GL_STATIC_DRAW);
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), static_cast<void*>(nullptr));
 			glEnableVertexAttribArray(1);
 
 			// Unbind VAO
