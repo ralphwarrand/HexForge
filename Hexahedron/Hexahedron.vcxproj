@@ -87,6 +87,7 @@
       <AdditionalIncludeDirectories>D:\Projects\Hexahedron\Hexahedron\include;D:\Projects\Hexahedron\Hexahedron\thirdparty</AdditionalIncludeDirectories>
       <LibCompiled>true</LibCompiled>
     </ClCompile>
+    <ClCompile Include="src\Renderer\Primitives.cpp" />
     <ClCompile Include="src\Renderer\Renderer.cpp" />
     <ClCompile Include="src\Renderer\Shader.cpp" />
   </ItemGroup>
