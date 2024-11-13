@@ -10,7 +10,7 @@ namespace Hex
 	class Camera
 	{
 	public:
-		Camera(glm::vec3 position, float yaw, float pitch);
+		Camera(const glm::vec3& position, const float& yaw, const float& pitch);
 		~Camera();
 
 		Camera(const Camera&) = delete;
@@ -23,8 +23,8 @@ namespace Hex
 		[[nodiscard]] glm::mat4 GetProjectionMatrix() const;
 
 		void ProcessKeyboardInput(GLFWwindow* window, const float& delta_time);
-		void ProcessMouseInput(float x_offset, float y_offset, const bool constrain_pitch = true);
-		void ProcessMouseScroll(float yOffset);
+		void ProcessMouseInput(double x_offset, double y_offset, const bool constrain_pitch = true);
+		void ProcessMouseScroll(const float& y_offset);
 
 		void UpdateProjectionMatrix();
 		void UpdateCameraVectors();

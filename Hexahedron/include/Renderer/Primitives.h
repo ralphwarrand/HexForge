@@ -24,7 +24,8 @@ namespace Hex
 
 		Primitive& operator = (const Primitive&) = default;
 		Primitive& operator = (Primitive&&) = default;
-		
+
+		virtual void InitBuffers() = 0;
 		virtual void Draw() = 0;
 
 		// Getters and setters
@@ -51,13 +52,14 @@ namespace Hex
 		LineBatch& operator = (LineBatch&&) = default;
 
 		void AddLine(const glm::vec3& start, const glm::vec3& end,  const glm::vec3& color = glm::vec3(1.0f));
-		void InitBuffers() const;
+		void InitBuffers() override;
 		void Draw() override;
 		
 	private:
 		GLuint m_vao, m_vbo, m_cbo;
 		std::vector<glm::vec3> m_vertices;
 		std::vector<glm::vec3> m_colors;
+		bool m_buffers_initialised{false};
 	};
 
 	class Sphere: public Primitive

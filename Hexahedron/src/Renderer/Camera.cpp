@@ -5,7 +5,7 @@
 
 namespace Hex
 {
-	Camera::Camera(glm::vec3 position, float yaw, float pitch)
+	Camera::Camera(const glm::vec3& position, const float& yaw, const float& pitch)
 	{
 		m_position = position;
 		m_yaw = yaw;
@@ -62,13 +62,13 @@ namespace Hex
 
 	}
 
-	void Camera::ProcessMouseInput(float x_offset, float y_offset, const bool constrain_pitch)
+	void Camera::ProcessMouseInput(double x_offset, double y_offset, const bool constrain_pitch)
 	{
 		x_offset *= m_mouse_sensitivity;
 		y_offset *= m_mouse_sensitivity;
 
-		m_yaw += x_offset;
-		m_pitch += y_offset;
+		m_yaw += static_cast<float>(x_offset);
+		m_pitch += static_cast<float>(y_offset);
 
 		if (constrain_pitch) {
 			if (m_pitch > 89.0f)
@@ -80,9 +80,9 @@ namespace Hex
 		UpdateCameraVectors();
 	}
 
-	void Camera::ProcessMouseScroll(float yOffset)
+	void Camera::ProcessMouseScroll(const float& y_offset)
 	{
-		m_zoom -= yOffset;
+		m_zoom -= y_offset;
 		if (m_zoom < 1.0f)
 			m_zoom = 1.0f;
 		if (m_zoom > 90.f)
