@@ -1,5 +1,6 @@
 ﻿//Hex
 #include "Renderer/Shader.h"
+#include "Engine/Logger.h"
 
 //Lib
 #include <glm/glm.hpp>
@@ -46,11 +47,11 @@ namespace Hex
     }
 
     // Uniform setting functions
-    void Shader::SetUniform1i(const std::string& name, int value) {
+    void Shader::SetUniform1i(const std::string& name, const int value) {
         glUniform1i(GetUniformLocation(name), value);
     }
 
-    void Shader::SetUniform1f(const std::string& name, float value) {
+    void Shader::SetUniform1f(const std::string& name, const float value) {
         glUniform1f(GetUniformLocation(name), value);
     }
 
@@ -70,7 +71,7 @@ namespace Hex
         return buffer.str();
     }
 
-    GLuint Shader::CompileShader(GLenum type, const std::string& source) {
+    GLuint Shader::CompileShader(const GLenum type, const std::string& source) {
         const GLuint shader = glCreateShader(type);
         const char* src = source.c_str();
         glShaderSource(shader, 1, &src, nullptr);
@@ -80,15 +81,16 @@ namespace Hex
         GLint success;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
-            char infoLog[512];
-            glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-            std::cerr << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
+            char info_log[512];
+            glGetShaderInfoLog(shader, 512, nullptr, info_log);
+            std::cerr << "ERROR::SHADER::COMPILATION_FAILED\n" << info_log << std::endl;
+            Log(LogLevel::Error, std::format("ERROR::SHADER::COMPILATION_FAILED\n{}", info_log));
         }
 
         return shader;
     }
 
-    void Shader::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) const
+    void Shader::LinkProgram(const GLuint vertex_shader, const GLuint fragment_shader) const
     {
         glAttachShader(m_program_id, vertex_shader);
         glAttachShader(m_program_id, fragment_shader);
@@ -98,22 +100,22 @@ namespace Hex
         GLint success;
         glGetProgramiv(m_program_id, GL_LINK_STATUS, &success);
         if (!success) {
-            char infoLog[512];
-            glGetProgramInfoLog(m_program_id, 512, nullptr, infoLog);
-            std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+            char info_log[512];
+            glGetProgramInfoLog(m_program_id, 512, nullptr, info_log);
+            Log(LogLevel::Error, std::format("ERROR::SHADER::PROGRAM::LINKING_FAILED\n{}", info_log));
         }
     }
 
     GLint Shader::GetUniformLocation(const std::string& name) {
         // Check cache for location
-        if (m_uniform_location_cache.find(name) != m_uniform_location_cache.end()) {
+        if (m_uniform_location_cache.contains(name)) {
             return m_uniform_location_cache[name];
         }
 
         // Get location and cache it
         const GLint location = glGetUniformLocation(m_program_id, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
+            Log(LogLevel::Warning, std::format("Uniform {} doesn't exist", name));
         }
         m_uniform_location_cache[name] = location;
         return location;

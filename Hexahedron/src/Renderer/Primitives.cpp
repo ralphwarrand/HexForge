@@ -4,7 +4,6 @@
 #include "Engine/Logger.h"
 
 //Lib
-#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/ext/scalar_constants.hpp>
 
@@ -30,14 +29,21 @@ namespace Hex
 		return m_shader;
 	}
 
-	bool Primitive::shouldCullBackFaces() const
+	bool Primitive::ShouldCullBackFaces() const
 	{
 		return m_cull_back_face;
+	}
+
+	bool Primitive::ShouldShade() const
+	{
+		return m_shaded;
 	}
 
 	LineBatch::LineBatch()
 	{
 		m_model_matrix = glm::mat4(1.0f);
+		m_cull_back_face = false;
+		m_shaded = false;
 	}
 
 	LineBatch::~LineBatch()
@@ -51,6 +57,10 @@ namespace Hex
 	{
 		m_vertices.push_back(start);
 		m_vertices.push_back(end);
+
+		const glm::vec3 direction = glm::normalize(end - start);
+		m_dirs.push_back(direction);
+		m_dirs.push_back(direction);
 
 		m_colors.push_back(color);
 		m_colors.push_back(color);
@@ -69,13 +79,10 @@ namespace Hex
 		// Gen buffers
 		glGenVertexArrays(1, &m_vao);
 		glGenBuffers(1, &m_vbo);
-		if (glGetError() != GL_NO_ERROR) {
-			Log(LogLevel::Error, "Failed to upload buffer");
-		}
-		
 		glGenBuffers(1, &m_cbo); // Color buffer
+		glGenBuffers(1, &m_dbo);
 
-		if (m_vao == 0 || m_vbo == 0 || m_cbo == 0) {
+		if (m_vao == 0 || m_vbo == 0 || m_cbo == 0 || m_dbo == 0) {
 			Log(LogLevel::Error, "VAO or VBO/CBO generation failed!");
 		}
 		
@@ -97,6 +104,12 @@ namespace Hex
 		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_colors.size() * sizeof(glm::vec3)), m_colors.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 		glEnableVertexAttribArray(1);
+
+		// Initialize dirs buffer
+		glBindBuffer(GL_ARRAY_BUFFER, m_dbo);
+		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_dirs.size() * sizeof(glm::vec3)), m_dirs.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+		glEnableVertexAttribArray(2);
 		
 		// Unbind VAO and color buffer
 		glBindVertexArray(0);
@@ -130,6 +143,7 @@ namespace Hex
 	{
 		m_cull_back_face = true;
 		m_model_matrix = glm::mat4(1.0f);
+		m_shaded = true;
 		GenerateSphereVertices(radius, sector_count, stack_count);
 	}
 
@@ -159,9 +173,9 @@ namespace Hex
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size()) * sizeof(unsigned int), m_indices.data(), GL_STATIC_DRAW);
 
 		// Generate VBO for normals (optional)
-		GLuint normalVBO;
-		glGenBuffers(1, &normalVBO);
-		glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
+		GLuint normal_vbo;
+		glGenBuffers(1, &normal_vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, normal_vbo);
 		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_normals.size() * sizeof(glm::vec3)), m_normals.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 		glEnableVertexAttribArray(1);
@@ -200,7 +214,7 @@ namespace Hex
 			float z = radius * sinf(stack_angle);
 
 			for (unsigned int j = 0; j <= sector_count; ++j) {
-				const float sector_angle = j * sector_step;
+				const float sector_angle = static_cast<float>(j) * sector_step;
 
 				float x = xy * cosf(sector_angle);
 				float y = xy * sinf(sector_angle);

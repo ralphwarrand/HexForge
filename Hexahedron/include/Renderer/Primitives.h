@@ -33,12 +33,15 @@ namespace Hex
 		[[nodiscard]] const glm::mat4& GetModelMatrix() const;
 		void SetShaderProgram(Shader* shader);
 		[[nodiscard]] Shader* GetShaderProgram() const;
-		bool shouldCullBackFaces() const;
+		bool ShouldCullBackFaces() const;
+		bool ShouldShade() const;
 	
 	protected:
 		Shader* m_shader{ nullptr };
 		glm::mat4 m_model_matrix;
+		
 		bool m_cull_back_face{false};
+		bool m_shaded{true};
 	};
 
 	class LineBatch final : public Primitive
@@ -58,16 +61,19 @@ namespace Hex
 		void Draw() override;
 		
 	private:
-		GLuint m_vao, m_vbo, m_cbo;
+		GLuint m_vao{}, m_vbo{}, m_cbo{}, m_dbo{};
 		std::vector<glm::vec3> m_vertices;
+		std::vector<glm::vec3> m_normals;
 		std::vector<glm::vec3> m_colors;
+		std::vector<glm::vec3> m_dirs;
+		
 		bool m_buffers_initialised{false};
 	};
 
 	class UVSphere: public Primitive
 	{
 	public:
-		UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18);
+		explicit UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18);
 		~UVSphere() override;
 
 		void InitBuffers() override;

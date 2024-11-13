@@ -24,7 +24,7 @@ namespace Hex
 		DrawOrigin(line_batch);
 		AddPrimitive<LineBatch>(line_batch);
 
-		auto sphere = UVSphere();
+		auto sphere = UVSphere(2.f, 80, 40);
 		sphere.SetShaderProgram(new Shader(
 			"resources/shaders/debug.vert",
 			"resources/shaders/debug.frag"
@@ -45,7 +45,7 @@ namespace Hex
 
 		for (const auto& primitive : m_primitives) {
 			//Set culling
-			if(primitive->shouldCullBackFaces())
+			if(primitive->ShouldCullBackFaces())
 			{
 				glEnable(GL_CULL_FACE);
 				glCullFace(GL_BACK);
@@ -59,6 +59,7 @@ namespace Hex
 			shader->SetUniformMat4("view", m_camera->GetViewMatrix());
 			shader->SetUniformMat4("projection", m_camera->GetProjectionMatrix());
 			shader->SetUniformVec3("viewPosition", m_camera->GetPosition());
+			shader->SetUniform1i("shade", primitive->ShouldShade());
 			
 			primitive->Draw();
 
