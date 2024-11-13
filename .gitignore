@@ -16,9 +16,18 @@
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
+# Rider-specific files
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider Plugins
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/httpRequests
 
 # Compiled Static libraries
 *.lai
@@ -31,8 +40,15 @@
 *.out
 *.app
 
+# Log
+.tlog
+
+# Build outputs and generated files
+bin/
+obj/
 .vs/
-.idea/
-out/
-*.user
+
+# Hexahedron specific
+Sandbox/out/
+Hexahedron/out/
 log.txt
