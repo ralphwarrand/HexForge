@@ -5,10 +5,63 @@
 
 //Lib
 #include <glm/glm.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
 
 namespace Hex
 {
+	Primitive::~Primitive()
+	{
+		delete m_shader;
+		delete m_material;
+	}
+
+	void Primitive::InitBuffers()
+	{
+		if (m_buffers_initialized) return;
+		
+		// Clear old buffers
+		if (m_vao != 0 || m_vbo != 0 || m_ubo != 0) {
+			Log(LogLevel::Debug, "Old buffers were deleted");
+			glDeleteVertexArrays(1, &m_vao);
+			glDeleteBuffers(1, &m_vbo);
+			glDeleteBuffers(1, &m_ubo);
+		}
+		
+		// Gen buffers
+		glGenVertexArrays(1, &m_vao);
+		glGenBuffers(1, &m_vbo);
+		glGenBuffers(1, &m_ubo);
+
+		if (m_vao == 0 || m_vbo == 0 || m_ubo == 0) {
+			Log(LogLevel::Error, "VAO or VBO/UBO generation failed!");
+		}
+
+		// Bind VAO before setting attributes
+		glBindVertexArray(m_vao);
+		glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderData), nullptr, GL_DYNAMIC_DRAW); // Allocate memory
+		
+		constexpr GLuint binding_point = 0;
+		const GLuint block_index = glGetUniformBlockIndex(m_shader->GetProgramID(), "RenderData");
+		glUniformBlockBinding(m_shader->GetProgramID(), block_index, binding_point);
+		glBindBufferBase(GL_UNIFORM_BUFFER, binding_point, m_ubo);
+		
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0); // Unbind when done
+	}
+
+	void Primitive::Draw()
+	{
+		if (!m_buffers_initialized) {
+			InitBuffers();
+			m_buffers_initialized = true;
+		}
+
+		// Bind the VAO
+		glBindVertexArray(m_vao);
+	}
+
 	void Primitive::SetModelMatrix(const glm::mat4& model_matrix)
 	{
 		m_model_matrix = model_matrix;
@@ -29,6 +82,31 @@ namespace Hex
 		return m_shader;
 	}
 
+	void Primitive::SetMaterial(Material* material)
+	{
+		m_material = material;
+	}
+
+	const Material* Primitive::GetMaterial() const
+	{
+		return m_material;
+	}
+
+	void Primitive::SetRenderData(const RenderData& render_data)
+	{
+		if (!m_buffers_initialized) {
+			InitBuffers();
+			m_buffers_initialized = true;
+		}
+		
+		m_render_data = render_data;
+
+		glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderData), nullptr, GL_DYNAMIC_DRAW); // Orphan old data
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+
 	bool Primitive::ShouldCullBackFaces() const
 	{
 		return m_cull_back_face;
@@ -41,9 +119,8 @@ namespace Hex
 
 	LineBatch::LineBatch()
 	{
-		m_model_matrix = glm::mat4(1.0f);
 		m_cull_back_face = false;
-		m_shaded = false;
+		m_shaded = false; //shading on lines is not working yet
 	}
 
 	LineBatch::~LineBatch()
@@ -68,26 +145,12 @@ namespace Hex
 
 	void LineBatch::InitBuffers()
 	{
-		// Clear old buffers
-		if (m_vao != 0 || m_vbo != 0 || m_cbo != 0) {
-			Log(LogLevel::Debug, "Old buffers were deleted");
-			glDeleteVertexArrays(1, &m_vao);
-			glDeleteBuffers(1, &m_vbo);
-			glDeleteBuffers(1, &m_cbo);
-		}
-		
-		// Gen buffers
-		glGenVertexArrays(1, &m_vao);
-		glGenBuffers(1, &m_vbo);
-		glGenBuffers(1, &m_cbo); // Color buffer
-		glGenBuffers(1, &m_dbo);
+		Primitive::InitBuffers();
 
-		if (m_vao == 0 || m_vbo == 0 || m_cbo == 0 || m_dbo == 0) {
-			Log(LogLevel::Error, "VAO or VBO/CBO generation failed!");
-		}
-		
-		// Bind VAO before setting attributes
-		glBindVertexArray(m_vao); 
+		if (m_buffers_initialized) return;
+
+		glGenBuffers(1, &m_cbo);
+		glGenBuffers(1, &m_dbo);
 
 		// Initialize vertex buffer 
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
@@ -118,33 +181,23 @@ namespace Hex
 
 	void LineBatch::Draw()
 	{
-		// Initialize buffers only once
-		if (!m_vertices.empty() && !m_buffers_initialised)
-		{
-			InitBuffers();
-			m_buffers_initialised = true;
-		}
-
-		m_shader->Bind();
-
-		m_shader->SetUniformMat4("model", m_model_matrix);
-
-		// Bind the VAO
-		glBindVertexArray(m_vao);
+		Primitive::Draw();
 
 		// Draw the lines
 		glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_vertices.size()));
 
-		// Unbind the VAO and shader program
+		// Unbind the VAO
 		glBindVertexArray(0);
 	}
 
-	UVSphere::UVSphere(const float radius, const unsigned int sector_count, const unsigned int stack_count)
+	UVSphere::UVSphere(const float radius, const unsigned int sector_count, const unsigned int stack_count,
+		glm::vec3 position)
 	{
 		m_cull_back_face = true;
-		m_model_matrix = glm::mat4(1.0f);
 		m_shaded = true;
 		GenerateSphereVertices(radius, sector_count, stack_count);
+
+		m_model_matrix = glm::translate(m_model_matrix, position);
 	}
 
 	UVSphere::~UVSphere()
@@ -156,12 +209,13 @@ namespace Hex
 
 	void UVSphere::InitBuffers()
 	{
-		// Generate and bind VAO
-		glGenVertexArrays(1, &m_vao);
-		glBindVertexArray(m_vao);
+		Primitive::InitBuffers();
+
+		if (m_buffers_initialized) return;
+
+		glGenBuffers(1, &m_ebo);
 
 		// Generate VBO for vertex positions
-		glGenBuffers(1, &m_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_vertices.size() * sizeof(glm::vec3)), m_vertices.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
@@ -186,16 +240,12 @@ namespace Hex
 
 	void UVSphere::Draw()
 	{
-		if (!m_buffers_initialized) {
-			InitBuffers();
-			m_buffers_initialized = true;
-		}
+		Primitive::Draw();
 
-		m_shader->Bind();
-		m_shader->SetUniformMat4("model", m_model_matrix);
-
-		glBindVertexArray(m_vao);
+		// Draw the triangles
 		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()), GL_UNSIGNED_INT, nullptr);
+
+		// Unbind the VAO
 		glBindVertexArray(0);
 	}
 
@@ -220,9 +270,9 @@ namespace Hex
 				float y = xy * sinf(sector_angle);
 				m_vertices.emplace_back(x, y, z);
 
-				float nx = x * length_inv;
-				float ny = y * length_inv;
-				float nz = z * length_inv;
+				const float nx = x * length_inv;
+				const float ny = y * length_inv;
+				const float nz = z * length_inv;
 				glm::vec3 normal = {nx, ny, nz};
 				normal = glm::normalize(normal);
 				m_normals.emplace_back(normal);

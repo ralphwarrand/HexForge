@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+//Hex
+#include "Renderer.h"
+
 //LIB
 #include <glm/fwd.hpp>
 #include <glm/mat4x4.hpp>
@@ -17,29 +20,38 @@ namespace Hex
 	{
 	public:
 		Primitive() : m_model_matrix(glm::mat4(1.0f)) {}
-		virtual ~Primitive() = default;
+		virtual ~Primitive();
 
 		Primitive(const Primitive&) = default;
 		Primitive(Primitive&&) = default;
 
 		Primitive& operator = (const Primitive&) = default;
 		Primitive& operator = (Primitive&&) = default;
-
-		virtual void InitBuffers() = 0;
-		virtual void Draw() = 0;
+		
+		virtual void InitBuffers();
+		virtual void Draw();
 
 		// Getters and setters
 		void SetModelMatrix(const glm::mat4& model_matrix);
 		[[nodiscard]] const glm::mat4& GetModelMatrix() const;
 		void SetShaderProgram(Shader* shader);
 		[[nodiscard]] Shader* GetShaderProgram() const;
-		bool ShouldCullBackFaces() const;
-		bool ShouldShade() const;
+		void SetMaterial(Material* material);
+		[[nodiscard]] const Material* GetMaterial() const;
+		void SetRenderData(const RenderData& render_data);
+
+		// Render defs
+		[[nodiscard]] bool ShouldCullBackFaces() const;
+		[[nodiscard]] bool ShouldShade() const;
 	
 	protected:
+		GLuint m_vao{}, m_vbo{}, m_ubo{};
 		Shader* m_shader{ nullptr };
+		Material* m_material{ nullptr };
+		RenderData m_render_data;
 		glm::mat4 m_model_matrix;
-		
+
+		bool m_buffers_initialized{false};
 		bool m_cull_back_face{false};
 		bool m_shaded{true};
 	};
@@ -61,30 +73,34 @@ namespace Hex
 		void Draw() override;
 		
 	private:
-		GLuint m_vao{}, m_vbo{}, m_cbo{}, m_dbo{};
+		GLuint m_cbo{}, m_dbo{};
 		std::vector<glm::vec3> m_vertices;
 		std::vector<glm::vec3> m_normals;
 		std::vector<glm::vec3> m_colors;
 		std::vector<glm::vec3> m_dirs;
-		
-		bool m_buffers_initialised{false};
 	};
 
 	class UVSphere: public Primitive
 	{
 	public:
-		explicit UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18);
+		explicit UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18,
+			glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f));
 		~UVSphere() override;
+
+		UVSphere(const UVSphere&) = default;
+		UVSphere(UVSphere&&) = default;
+
+		UVSphere& operator = (const UVSphere&) = default;
+		UVSphere& operator = (UVSphere&&) = default;
 
 		void InitBuffers() override;
 		void Draw() override;
 
 	private:
-		GLuint m_vao, m_vbo, m_ebo;
+		GLuint m_ebo{};
 		std::vector<glm::vec3> m_vertices;
 		std::vector<glm::vec3> m_normals;
 		std::vector<unsigned int> m_indices;
-		bool m_buffers_initialized{false};
 
 		void GenerateSphereVertices(float radius, unsigned int sector_count, unsigned int stack_count);
 	};

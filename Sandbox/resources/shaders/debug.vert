@@ -3,12 +3,17 @@
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
 
+layout(std140) uniform RenderData {
+    mat4 view;
+    mat4 projection;
+    vec3 view_pos;
+};
+
 out vec3 fragPosition;
 out vec3 fragNormal;
 
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+
 
 void main()
 {

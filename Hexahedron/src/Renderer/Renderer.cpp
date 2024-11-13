@@ -9,27 +9,35 @@
 //Lib
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <glm/ext/matrix_transform.hpp>
+
 
 namespace Hex
 {
 	Renderer::Renderer(const AppSpecification& application_spec)
 	{
 		Init(application_spec);
-
-		auto line_batch = LineBatch();
-		line_batch.SetShaderProgram(new Shader(
+		
+		AddPrimitive<LineBatch>();
+		m_primitives.back()->SetShaderProgram(new Shader(
 			"resources/shaders/line.vert",
 			"resources/shaders/line.frag"
 		));
-		DrawOrigin(line_batch);
-		AddPrimitive<LineBatch>(line_batch);
+		if (auto* line_batch = dynamic_cast<LineBatch*>(m_primitives.back().get())) DrawOrigin(*line_batch); 
 
-		auto sphere = UVSphere(2.f, 80, 40);
-		sphere.SetShaderProgram(new Shader(
+		auto* debug_shader = new Shader(
 			"resources/shaders/debug.vert",
 			"resources/shaders/debug.frag"
-		));
-		AddPrimitive<UVSphere>(sphere);
+		);
+		
+		AddPrimitive<UVSphere>(2.f, 80, 40);
+		m_primitives.back()->SetShaderProgram(debug_shader);
+
+		AddPrimitive<UVSphere>(2.f, 80, 40, glm::vec3(10.f, 10.f, 0.f));
+		m_primitives.back()->SetShaderProgram(debug_shader);
+
+		AddPrimitive<UVSphere>(2.f, 80, 40, glm::vec3(-10.f, 10.f, 0.f));
+		m_primitives.back()->SetShaderProgram(debug_shader);
 	}
 
 	Renderer::~Renderer()
@@ -38,12 +46,21 @@ namespace Hex
 		delete m_camera;
 	}
 
-	void Renderer::Tick() const
+	void Renderer::Tick()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-		for (const auto& primitive : m_primitives) {
+		glEnable(GL_DEPTH_TEST);
+		
+		m_render_data = RenderData(
+			m_camera->GetViewMatrix(),
+			m_camera->GetProjectionMatrix(),
+			m_camera->GetPosition()
+		);
+		
+		for (const auto& primitive : m_primitives)
+		{
+			primitive->SetRenderData(m_render_data);
 			//Set culling
 			if(primitive->ShouldCullBackFaces())
 			{
@@ -53,12 +70,14 @@ namespace Hex
 			
 			// Retrieve shader from primitive and bind
 			const auto shader = primitive->GetShaderProgram();
+			if(shader == nullptr)
+			{
+				Log(LogLevel::Error, "Failed to get shader program");
+			}
 			shader->Bind();
 			
 			// Set uniforms
-			shader->SetUniformMat4("view", m_camera->GetViewMatrix());
-			shader->SetUniformMat4("projection", m_camera->GetProjectionMatrix());
-			shader->SetUniformVec3("viewPosition", m_camera->GetPosition());
+			shader->SetUniformMat4("model", primitive->GetModelMatrix());
 			shader->SetUniform1i("shade", primitive->ShouldShade());
 			
 			primitive->Draw();
@@ -88,7 +107,7 @@ namespace Hex
 		
 		glEnable(GL_DEBUG_OUTPUT);
 		
-		m_camera = new Camera({0.f, 0.f, 10.f}, -90.0f, 0.f);
+		m_camera = new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f);
 
 		SetupCallBacks();
 		

@@ -1,16 +1,24 @@
 #version 410
 
-in vec3 fragPosition;
-in vec3 fragNormal;
+layout(std140) uniform RenderData {
+    mat4 view;
+    mat4 projection;
+    vec3 view_pos;
+};
 
-out vec4 color;
+struct Material {
+    vec3 ambientColor;
+    vec3 diffuseColor;
+    vec3 specularColor;
+    float shininess;      // Shininess factor for specular highlights
+};
 
-uniform vec3 viewPosition;    // Position of the viewer/camera
+//uniform Material material;
 uniform bool shade;
 
-//uniform vec3 lightPosition;   // Position of the light source
-//uniform vec3 lightColor;      // Color/intensity of the light
-//uniform vec3 objectColor;     // Base color of the object
+in vec3 fragPosition;
+in vec3 fragNormal;
+out vec4 color;
 
 void main()
 {
@@ -34,7 +42,7 @@ void main()
         // Specular lighting
         float specularStrength = 0.2f;
         float shininess = 128.0f;
-        vec3 viewDir = normalize(viewPosition - fragPosition);
+        vec3 viewDir = normalize(view_pos - fragPosition);
         vec3 halfwayDir = normalize(lightDir + viewDir); // Blinn-Phong halfway vector
         float spec = pow(max(dot(norm, halfwayDir), 0.0), shininess);
         vec3 specular = clamp(spec * lightColor * specularStrength, 0.0f, 1.0f);

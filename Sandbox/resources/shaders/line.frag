@@ -1,5 +1,11 @@
 #version 410
 
+layout(std140) uniform RenderData {
+    mat4 view;
+    mat4 projection;
+    vec3 view_pos;
+};
+
 in vec3 fragPosition;
 in vec3 fragNormal;
 in vec3 fragColor;
@@ -9,8 +15,8 @@ out vec4 color;
 uniform bool shade;
 
 void main()
-{   
-    if(shade)
+{
+    if (shade)
     {
         vec3 lightPosition = vec3(0.0f, 1000.0f, 1000.0f);
         vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
@@ -30,7 +36,7 @@ void main()
 
         // Output the final color, with alpha set to 1.0 (fully opaque)
         color = vec4(resultColor, 1.0);
-        //color = vec4(fragNormal * 0.5 + 0.5, 1.0); // Adjusted to range [0, 1] for visibility
+        //color = vec4(fragNormal * 0.5 + 0.5, 1.0); // Adjusted to range 
     }
     else
     {

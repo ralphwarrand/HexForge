@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/mat4x4.hpp>
 
 namespace Hex
 {
@@ -18,17 +19,20 @@ namespace Hex
 		m_right = glm::vec3(1.f, 0.f, 0.f);
 		m_up = glm::vec3(0.f, 1.f, 0.f);
 		m_zoom = 60.f;
+
+		UpdateCameraVectors();
+		m_view_matrix = glm::lookAt(m_position, m_position + m_forward, m_up);
 	}
 
 	Camera::~Camera()
 	= default;
 
-	glm::mat4 Camera::GetViewMatrix() const
+	const glm::mat4& Camera::GetViewMatrix() const
 	{
-		return glm::lookAt(m_position, m_position + m_forward, m_up);
+		return m_view_matrix;
 	}
 
-	glm::mat4 Camera::GetProjectionMatrix() const
+	const glm::mat4& Camera::GetProjectionMatrix() const
 	{
 		return m_projection_matrix;
 	}
@@ -60,6 +64,8 @@ namespace Hex
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
 
+		UpdateCameraVectors();
+		m_view_matrix = glm::lookAt(m_position, m_position + m_forward, m_up);
 	}
 
 	void Camera::ProcessMouseInput(double x_offset, double y_offset, const bool constrain_pitch)
