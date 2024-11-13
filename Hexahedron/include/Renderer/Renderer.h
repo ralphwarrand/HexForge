@@ -41,13 +41,14 @@ namespace Hex
 	private:
 		void Init(const AppSpecification& app_spec);
 		void InitOpenGLContext(const AppSpecification& app_spec);
+		void SetupCallBacks();
 		static void LogRendererInfo();
+		
 		static void DrawOrigin(LineBatch& line_batch);
 		
 		GLFWwindow* m_window;
 		Camera* m_camera;
-
-		// Primitives
+		
 		std::vector<std::shared_ptr<Primitive>> m_primitives;
 	};
 

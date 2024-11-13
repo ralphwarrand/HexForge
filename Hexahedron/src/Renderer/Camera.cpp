@@ -112,4 +112,19 @@ namespace Hex
 		m_aspect_ratio = aspect_ratio;
 		UpdateProjectionMatrix();
 	}
+
+	glm::vec3 Camera::GetForwardVector() const
+	{
+		return m_forward;
+	}
+
+	glm::vec3 Camera::GetUpVector() const
+	{
+		return m_up;
+	}
+
+	glm::vec3 Camera::GetPosition() const
+	{
+		return m_position;
+	}
 }

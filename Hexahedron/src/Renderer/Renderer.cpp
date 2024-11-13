@@ -22,8 +22,14 @@ namespace Hex
 			"resources/shaders/line.frag"
 		));
 		DrawOrigin(line_batch);
-		
 		AddPrimitive<LineBatch>(line_batch);
+
+		auto sphere = UVSphere();
+		sphere.SetShaderProgram(new Shader(
+			"resources/shaders/debug.vert",
+			"resources/shaders/debug.frag"
+		));
+		AddPrimitive<UVSphere>(sphere);
 	}
 
 	Renderer::~Renderer()
@@ -36,7 +42,15 @@ namespace Hex
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
 		for (const auto& primitive : m_primitives) {
+			//Set culling
+			if(primitive->shouldCullBackFaces())
+			{
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_BACK);
+			}
+			
 			// Retrieve shader from primitive and bind
 			const auto shader = primitive->GetShaderProgram();
 			shader->Bind();
@@ -44,12 +58,14 @@ namespace Hex
 			// Set uniforms
 			shader->SetUniformMat4("view", m_camera->GetViewMatrix());
 			shader->SetUniformMat4("projection", m_camera->GetProjectionMatrix());
+			shader->SetUniformVec3("viewPosition", m_camera->GetPosition());
 			
 			primitive->Draw();
 
 			Hex::Shader::Unbind();
+
+			glDisable(GL_CULL_FACE);
 		}
-		
 		
 		glfwSwapBuffers(m_window);
 	}
@@ -70,47 +86,10 @@ namespace Hex
 		LogRendererInfo();
 		
 		glEnable(GL_DEBUG_OUTPUT);
-		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity,
-								  GLsizei length, const GLchar* message, [[maybe_unused]] const void* user_param) {
-			std::cerr << "OpenGL Debug Message: " << message << '\n';
-		}, nullptr);
-
-		glfwSetWindowUserPointer(m_window, this);
-
-		m_camera = new Camera({0.f, 0.f, 10.f}, -90.0f, 0.f);
 		
-		glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, const double x_delta, const double y_delta)
-		{
-			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-			
-			static double last_x = x_delta, last_y = y_delta;
-			static bool first_mouse = true;
-			
-			if (first_mouse) {
-				last_x = x_delta;
-				last_y = y_delta;
-				first_mouse = false;
-			}
+		m_camera = new Camera({0.f, 0.f, 10.f}, -90.0f, 0.f);
 
-			const double x_offset = x_delta - last_x;
-			const double y_offset = last_y - y_delta; // Reversed since y-coordinates go from bottom to top
-			
-			last_x = x_delta;
-			last_y = y_delta;
-			
-			self->m_camera->ProcessMouseInput(x_offset, y_offset);
-		});
-
-		glfwSetScrollCallback(m_window, [](GLFWwindow* window, double xoffset, const double yoffset)
-		{
-			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
-		});
-
-		glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* window, const int width, const int height)
-		{
-			glViewport(0, 0, width, height);
-		});
+		SetupCallBacks();
 		
 		glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	}
@@ -152,11 +131,12 @@ namespace Hex
 		//set callbacks
 		glfwSetErrorCallback([](const int error, const char* description)
 		{
-			const std::string errorString = std::to_string(error) + ":" + description;
-			Log(LogLevel::Error, errorString);
+			const std::string error_string = std::to_string(error) + ":" + description;
+			Log(LogLevel::Error, error_string);
 		});
 
 		glfwMakeContextCurrent(m_window);
+		glViewport(0, 0, app_spec.width, app_spec.height);
 
 		if (const GLenum err = glewInit(); GLEW_OK != err)
 		{
@@ -167,6 +147,50 @@ namespace Hex
 		{
 			Log(LogLevel::Info, "GLEW initialised");
 		}
+	}
+
+	void Renderer::SetupCallBacks()
+	{
+		glfwSetWindowUserPointer(m_window, this);
+		
+		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
+			[[maybe_unused]] const void* user_param) {
+			std::cerr << "OpenGL Debug Message: " << message << '\n';
+			}, nullptr
+		);
+
+		glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, const double x_delta, const double y_delta)
+		{
+			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+					
+			static double last_x = x_delta, last_y = y_delta;
+			static bool first_mouse = true;
+					
+			if (first_mouse) {
+				last_x = x_delta;
+				last_y = y_delta;
+				first_mouse = false;
+			}
+		
+			const double x_offset = x_delta - last_x;
+			const double y_offset = last_y - y_delta; // Reversed since y-coordinates go from bottom to top
+					
+			last_x = x_delta;
+			last_y = y_delta;
+					
+			self->m_camera->ProcessMouseInput(x_offset, y_offset);
+		});
+
+		glfwSetScrollCallback(m_window, [](GLFWwindow* window, double xoffset, const double yoffset)
+		{
+			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
+		});
+
+		glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* window, const int width, const int height)
+		{
+			glViewport(0, 0, width, height);
+		});
 	}
 
 	void Renderer::LogRendererInfo()

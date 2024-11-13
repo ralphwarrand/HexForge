@@ -39,7 +39,7 @@ namespace Hex
 		float delta_time = 0.0f;
 		float last_frame = 0.0f;
 
-		m_renderer->GetCamera()->SetAspectRatio(m_specification.width / m_specification.height);
+		m_renderer->GetCamera()->SetAspectRatio(static_cast<float>(m_specification.width) / m_specification.height);
 		
 		while (m_running && !glfwWindowShouldClose(m_renderer->GetWindow()))
 		{

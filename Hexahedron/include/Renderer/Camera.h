@@ -31,6 +31,11 @@ namespace Hex
 
 		// Setters
 		void SetAspectRatio(float aspect_ratio);
+
+		//Getters
+		[[nodiscard]] glm::vec3 GetForwardVector() const;
+		[[nodiscard]] glm::vec3 GetUpVector() const;
+		[[nodiscard]] glm::vec3 GetPosition() const;
 	private:
 		glm::mat4 m_projection_matrix;
 	

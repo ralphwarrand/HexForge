@@ -33,10 +33,12 @@ namespace Hex
 		[[nodiscard]] const glm::mat4& GetModelMatrix() const;
 		void SetShaderProgram(Shader* shader);
 		[[nodiscard]] Shader* GetShaderProgram() const;
+		bool shouldCullBackFaces() const;
 	
 	protected:
 		Shader* m_shader{ nullptr };
 		glm::mat4 m_model_matrix;
+		bool m_cull_back_face{false};
 	};
 
 	class LineBatch final : public Primitive
@@ -62,8 +64,22 @@ namespace Hex
 		bool m_buffers_initialised{false};
 	};
 
-	class Sphere: public Primitive
+	class UVSphere: public Primitive
 	{
-	
+	public:
+		UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18);
+		~UVSphere() override;
+
+		void InitBuffers() override;
+		void Draw() override;
+
+	private:
+		GLuint m_vao, m_vbo, m_ebo;
+		std::vector<glm::vec3> m_vertices;
+		std::vector<glm::vec3> m_normals;
+		std::vector<unsigned int> m_indices;
+		bool m_buffers_initialized{false};
+
+		void GenerateSphereVertices(float radius, unsigned int sector_count, unsigned int stack_count);
 	};
 }
