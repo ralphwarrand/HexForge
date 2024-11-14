@@ -66,6 +66,8 @@ target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURC
 # Link other libraries
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw glad stb_image stb_truetype imgui date fmt-header-only)
 
-# Platform-independent setup for linking libcurl
-find_package(CURL REQUIRED)
-target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE CURL::libcurl)
+# Only link libcurl on macOS
+if(APPLE)
+	find_package(CURL REQUIRED)
+	target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE CURL::libcurl)
+endif()

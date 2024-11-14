@@ -27,13 +27,13 @@ jobs:
           sudo apt-get install -y gcc-13 g++-13
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 60
-          sudo apt-get install -y cmake libxrandr-dev libx11-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev mesa-common-dev libcurl4-openssl-dev
+          sudo apt-get install -y cmake libxrandr-dev libx11-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev mesa-common-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install cmake curl
+          brew install cmake curl  # Only install curl on macOS
 
       - name: Configure CMake (Linux & macOS)
         if: runner.os != 'Windows'
