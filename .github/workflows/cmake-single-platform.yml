@@ -18,6 +18,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake libxrandr-dev libx11-dev libxinerama-dev libxcursor-dev libxi-dev
+        sudo apt-get install -y libgl1-mesa-dev mesa-common-dev
 
     - name: Configure CMake
       run: cmake -S . -B build
