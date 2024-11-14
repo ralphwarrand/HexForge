@@ -1,54 +1,7 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Rider-specific files
-.idea/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# Rider Plugins
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/dictionaries
-.idea/httpRequests
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Log
-.tlog
-
-# Build outputs and generated files
+/out
 bin/
-obj/
-.vs/
-
-# Hexahedron specific
-Sandbox/out/
-Hexahedron/out/
-log.txt
+build/
+/.vs
+.idea/
+CMakeSettings.json
+Makefile
