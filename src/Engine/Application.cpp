@@ -29,7 +29,9 @@ namespace Hex
 
 	void Application::Init(const AppSpecification& application_spec)
 	{
-		date::set_install(RESOURCES_PATH "tzdata");
+		#ifdef WIN32
+			date::set_install(RESOURCES_PATH "tzdata");
+		#endif
 
 		try {
 			auto tz = date::current_zone();
