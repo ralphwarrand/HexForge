@@ -38,7 +38,7 @@ jobs:
       - name: Configure CMake (Linux & macOS)
         if: runner.os != 'Windows'
         run: |
-          cmake -S . -B build -DCMAKE_CXX_STANDARD=20 -DCMAKE_PREFIX_PATH="/usr/local/opt/curl" -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_CXX_STANDARD=20 -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
