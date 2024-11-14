@@ -1,0 +1,32 @@
+name: CMake Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y gcc-13 g++-13
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 60
+        sudo apt-get install -y cmake libxrandr-dev libx11-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev mesa-common-dev
+
+    - name: Configure CMake
+      run: cmake -S . -B build -DCMAKE_CXX_STANDARD=20
+
+    - name: Build
+      run: cmake --build build
