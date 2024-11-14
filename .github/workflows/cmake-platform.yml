@@ -8,13 +8,17 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install dependencies
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y software-properties-common
@@ -25,8 +29,19 @@ jobs:
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 60
         sudo apt-get install -y cmake libxrandr-dev libx11-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev mesa-common-dev
 
-    - name: Configure CMake
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install cmake
+
+    - name: Configure CMake (Linux & macOS)
+      if: runner.os != 'Windows'
       run: cmake -S . -B build -DCMAKE_CXX_STANDARD=20
 
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      run: cmake -S . -B build -DCMAKE_CXX_STANDARD=20 -G "Visual Studio 17 2022" -A x64
+
     - name: Build
-      run: cmake --build build
+      run: cmake --build build --config Release
