@@ -1,6 +1,7 @@
 #pragma once
 //STL
 #include <string>
+#include <cstdint>
 
 namespace Hex
 {
