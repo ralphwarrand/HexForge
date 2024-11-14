@@ -36,8 +36,8 @@ add_subdirectory(thirdparty/stb_image)
 add_subdirectory(thirdparty/stb_truetype)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/imgui-docking)
-
-
+add_subdirectory(thirdparty/date)
+add_subdirectory(thirdparty/fmt)
 
 # MY_SOURCES is defined to be a list of all the source files for my game
 # DON'T ADD THE SOURCES BY HAND, they are already added with this macro
@@ -46,11 +46,15 @@ file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/
 
 add_executable("${CMAKE_PROJECT_NAME}"
 		src/main.cpp)
+target_sources("${CMAKE_PROJECT_NAME}" PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/date/src/tz.cpp)
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PRIVATE USE_OS_TZDB=0)
+
 
 set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC GLFW_INCLUDE_NONE=1) 
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC GLFW_INCLUDE_NONE=1)
 
 if(PRODUCTION_BUILD)
 	# setup the ASSETS_PATH macro to be in the root folder of your exe
@@ -82,4 +86,4 @@ endif()
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw 
-	glad stb_image stb_truetype imgui)
+	glad stb_image stb_truetype imgui date fmt-header-only)

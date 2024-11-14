@@ -8,7 +8,7 @@
 #include <GLFW/glfw3.h>
 
 //STL
-#include <cstdio>
+#include <cstdlib>
 
 namespace Hex
 {
@@ -29,6 +29,15 @@ namespace Hex
 
 	void Application::Init(const AppSpecification& application_spec)
 	{
+		date::set_install(RESOURCES_PATH "tzdata");
+
+		try {
+			auto tz = date::current_zone();
+			std::cout << "Timezone initialized: " << tz->name() << '\n';
+		} catch (const std::exception &e) {
+			std::cerr << "Error initializing timezone: " << e.what() << '\n';
+		}
+
 		m_renderer = new Renderer(application_spec);
 		m_specification = application_spec;
 		m_running = true;

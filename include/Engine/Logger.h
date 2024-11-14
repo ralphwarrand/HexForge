@@ -3,9 +3,11 @@
 //STL
 #include <iostream>
 #include <chrono>
-#include <format>
+#include "fmt/core.h"
+#include "date/date.h"
 #include <string>
 #include <fstream>
+#include "date/tz.h"
 
 namespace Hex 
 {
@@ -21,8 +23,9 @@ namespace Hex
 	inline void Log(const LogLevel log_level, const std::string& log_msg) {
 		std::ofstream ofs("log.txt", std::ios_base::app | std::ios_base::out);
 
-		auto const time = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
-		std::string log = std::format("{:%Y-%m-%d %X }", time);
+		auto now = std::chrono::system_clock::now();
+		auto local_time = date::format("%F %T", date::make_zoned(date::current_zone(), now));
+		std::string log = fmt::format("Current time: {}", local_time);
 
 		switch (log_level) {
 		case LogLevel::Debug:
