@@ -11,6 +11,14 @@
 //STL
 #include <vector>
 
+struct Vertex
+{
+	glm::vec3 position;
+	glm::vec3 color;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+};
+
 namespace Hex
 {
 	// Forward declarations
@@ -64,7 +72,6 @@ namespace Hex
 	{
 	public:
 		LineBatch();
-		~LineBatch() override;
 
 		LineBatch(const LineBatch&) = default;
 		LineBatch(LineBatch&&) = default;
@@ -77,35 +84,30 @@ namespace Hex
 		void Draw() override;
 		
 	private:
-		GLuint m_cbo{}, m_dbo{};
-		std::vector<glm::vec3> m_vertices;
-		std::vector<glm::vec3> m_normals;
-		std::vector<glm::vec3> m_colors;
-		std::vector<glm::vec3> m_dirs;
+		std::vector<Vertex> m_vertices;
 	};
 
-	class UVSphere final : public Primitive
+	class SphereBatch final : public Primitive
 	{
 	public:
-		explicit UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18,
-			glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f));
-		~UVSphere() override;
+		explicit SphereBatch();
+		~SphereBatch() override;
 
-		UVSphere(const UVSphere&) = default;
-		UVSphere(UVSphere&&) = default;
+		SphereBatch(const SphereBatch&) = default;
+		SphereBatch(SphereBatch&&) = default;
 
-		UVSphere& operator = (const UVSphere&) = default;
-		UVSphere& operator = (UVSphere&&) = default;
+		SphereBatch& operator = (const SphereBatch&) = default;
+		SphereBatch& operator = (SphereBatch&&) = default;
 
+		void AddSphere(const glm::vec3& position = glm::vec3(0.f), const float& radius = 1.f,
+			const glm::vec3& color = glm::vec3(1.0f), unsigned int sector_count = 36, unsigned int stack_count = 18
+		);
 		void InitBuffers() override;
 		void Draw() override;
 
 	private:
 		GLuint m_ebo{};
-		std::vector<glm::vec3> m_vertices;
-		std::vector<glm::vec3> m_normals;
+		std::vector<Vertex> m_vertices;
 		std::vector<unsigned int> m_indices;
-
-		void GenerateSphereVertices(float radius, unsigned int sector_count, unsigned int stack_count);
 	};
 }

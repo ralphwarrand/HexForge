@@ -138,15 +138,16 @@ namespace Hex
 
 	void Renderer::CreateTestScene()
 	{
-		const auto debug_shader = ShaderManager::GetOrCreateShader(
-			RESOURCES_PATH "shaders/debug.vert",
-			RESOURCES_PATH "shaders/debug.frag"
-		);
-
 		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
 
 		constexpr int rows = 40;
 		constexpr int columns = 40;
+
+		GetOrCreateSphereBatch()->AddSphere(
+			glm::vec3(0.f),
+			1.f,
+			{1.f, 0.f, 1.f}
+		);
 
 		for (int i = 0; i < rows * columns; i++) {
 			constexpr float spacing = 4.f;
@@ -156,20 +157,17 @@ namespace Hex
 
 			glm::vec3 random_colour = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
 
-			//GetOrCreateLineBatch()->AddLine(
-			//	glm::vec3(1 + x * spacing, 0.f, 1 + z * spacing),
-			//	glm::vec3(1 + x * spacing, 10.f, 1 + z * spacing),
-			//	random_colour
-			//);
+			GetOrCreateLineBatch()->AddLine(
+				glm::vec3(1 + x * spacing, 0.f, 1 + z * spacing),
+				glm::vec3(1 + x * spacing, 10.f, 1 + z * spacing),
+				random_colour
+			);
 
-			auto* sphere = AddAndGetPrimitive<UVSphere>(1.f, 36, 18, glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing));
-
-			if(i == rows * columns - 1)
-			{
-				Test = sphere;
-			}
-
-			sphere->SetShaderProgram(debug_shader);
+			GetOrCreateSphereBatch()->AddSphere(
+				glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing),
+				1.f,
+				random_colour
+			);
 		}
 	}
 
@@ -308,6 +306,26 @@ namespace Hex
 		return m_cached_line_batch;
 	}
 
+	SphereBatch * Renderer::GetOrCreateSphereBatch()
+	{
+		// If the LineBatch is already cached, return it
+		if (m_cached_sphere_batch) {
+			return m_cached_sphere_batch;
+		}
+
+		// If not found in the cache, create a new SphereBatch
+		m_cached_sphere_batch = AddAndGetPrimitive<SphereBatch>();
+
+		const auto sphere_shader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/debug.vert",
+			RESOURCES_PATH "shaders/debug.frag"
+		);
+
+		m_cached_sphere_batch->SetShaderProgram(sphere_shader);
+
+		return m_cached_sphere_batch;
+	}
+
 	GLFWwindow* Renderer::GetWindow() const
 	{
 		return m_window.get();
@@ -365,14 +383,8 @@ namespace Hex
 						m_camera->GetPosition().z);
 			ImGui::Separator();
 			ImGui::Text("Camera View: %s", glm::to_string(m_camera->GetViewMatrix()).c_str());
-			ImGui::Text("Test View: %s", glm::to_string(Test->GetRenderData().view).c_str());
 			ImGui::Separator();
 			ImGui::Text("Camera Proj: %s", glm::to_string(m_camera->GetProjectionMatrix()).c_str());
-			ImGui::Text("Test Proj: %s", glm::to_string(Test->GetRenderData().projection).c_str());
-			ImGui::Separator();
-			ImGui::Text("Test Matrix: %s", glm::to_string(Test->GetModelMatrix()).c_str());
-
-
 		}
 
 

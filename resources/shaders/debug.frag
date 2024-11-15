@@ -9,53 +9,39 @@ layout(std140) uniform RenderData {
     float padding2[3]; // 12 bytes (padding to align to 16 bytes)
 };
 
-struct Material {
-    vec3 ambientColor;
-    vec3 diffuseColor;
-    vec3 specularColor;
-    float shininess;      // Shininess factor for specular highlights
-};
+in vec3 fragPosition; // World-space position of the fragment
+in vec3 fragNormal;   // World-space normal
+in vec3 fragColor;    // Vertex color
 
-//uniform Material material;
-uniform bool shade;
-
-in vec3 fragPosition;
-in vec3 fragNormal;
-out vec4 color;
+out vec4 color;       // Output color of the fragment
 
 void main()
 {
-    vec3 objectColor = vec3(1.0f, 1.0f, 0.0f);
-    
-    if(shade && !wireframe)
-    {
-        vec3 lightPosition = vec3(0.0f, 1000.0f, 1000.0f);
-        vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
-        
-        // Ambient lighting
-        float ambientStrength = 0.08f;
-        vec3 ambient = clamp(ambientStrength * lightColor, 0.0f, 1.0f);
+    // Lighting parameters
+    vec3 lightPosition = vec3(10.0, 10.0, 10.0); // Light position in world space
+    vec3 lightColor = vec3(1.0, 1.0, 1.0);       // Light color
+    float ambientStrength = 0.1;                // Ambient light strength
+    float specularStrength = 0.5;               // Specular light strength
+    float shininess = 32.0;                     // Shininess factor
 
-        // Diffuse lighting
-        vec3 norm = normalize(fragNormal);
-        vec3 lightDir = normalize(lightPosition - fragPosition);
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = mix(ambient, diff * lightColor, 0.9); //softened diffuse to reduce hotspot
+    // Ambient lighting
+    vec3 ambient = ambientStrength * lightColor;
 
-        // Specular lighting
-        float specularStrength = 0.2f;
-        float shininess = 128.0f;
-        vec3 viewDir = normalize(view_pos - fragPosition);
-        vec3 halfwayDir = normalize(lightDir + viewDir); // Blinn-Phong halfway vector
-        float spec = pow(max(dot(norm, halfwayDir), 0.0), shininess);
-        vec3 specular = clamp(spec * lightColor * specularStrength, 0.0f, 1.0f);
+    // Diffuse lighting
+    vec3 norm = normalize(fragNormal);
+    vec3 lightDir = normalize(lightPosition - fragPosition);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
 
-        // Combine all lighting components
-        vec3 result = (specular + ambient + diffuse) * objectColor;
-        color = vec4(result, 1.0);
-    }
-    else
-    {
-        color = vec4(objectColor, 1.0);
-    }
+    // Specular lighting (Blinn-Phong)
+    vec3 viewDir = normalize(view_pos - fragPosition);
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(norm, halfwayDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
+
+    // Combine all lighting components
+    vec3 result = (specular + ambient + diffuse) * fragColor;
+    color = vec4(normalize(fragNormal) * 0.5 + 0.5, 1.0);
+
+    color = vec4(result, 1.f);
 }

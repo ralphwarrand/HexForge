@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-
 struct GLFWwindow;
 
 namespace Hex
@@ -20,6 +19,7 @@ namespace Hex
 	class Mesh;
 	class Primitive;
 	class LineBatch;
+	class SphereBatch;
 
 	struct Material
 	{
@@ -65,6 +65,7 @@ namespace Hex
 		T* AddAndGetPrimitive(Args&&... args);
 
 		LineBatch* GetOrCreateLineBatch();
+		SphereBatch* GetOrCreateSphereBatch();
 
 		// Getters
 		[[nodiscard]] GLFWwindow* GetWindow() const;
@@ -92,10 +93,9 @@ namespace Hex
 
 		std::vector<std::shared_ptr<Primitive>> m_primitives;
 		LineBatch* m_cached_line_batch = nullptr;
+		SphereBatch* m_cached_sphere_batch = nullptr;
 
 		glm::vec3 m_light_pos{};
-
-		UVSphere* Test{nullptr};
 
 		bool m_wireframe_mode{false};
 	};

@@ -2,7 +2,8 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 color;
-layout(location = 2) in vec3 dir;
+layout(location = 2) in vec3 normal;
+layout(location = 3) in vec3 tangent;
 
 layout(std140) uniform RenderData {
     mat4 view;         // 64 bytes
@@ -24,17 +25,6 @@ void main()
     fragColor = color;
     fragPosition = vec3(view * model * vec4(position, 1.0));
 
-    // Stabilize the normal by using a fixed axis
-    vec3 up = vec3(0.0, 1.0, 0.0); // or another fixed axis based on line orientation
-    fragNormal = normalize(mat3(view) * cross(dir, up)); // Transform normal by view
-
-    fragNormal = normalize(mat3(view) * dir);
-
-    //// Make sure normal faces the camera
-    //vec3 viewDir = normalize(viewPosition - fragPosition);
-    //if (dot(fragNormal, viewDir) < 0.0) {
-    //    fragNormal = -fragNormal;
-    //}
 
     gl_Position = projection * view * model * vec4(position, 1.0);
 }

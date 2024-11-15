@@ -15,6 +15,9 @@ namespace Hex
 	Primitive::~Primitive()
 	{
 		delete m_material;
+		glDeleteVertexArrays(1, &m_vao);
+		glDeleteBuffers(1, &m_vbo);
+		glDeleteBuffers(1, &m_ubo);
 	}
 
 	void Primitive::InitBuffers()
@@ -130,24 +133,16 @@ namespace Hex
 		m_shaded = false; //shading on lines is not working yet
 	}
 
-	LineBatch::~LineBatch()
-	{
-		glDeleteVertexArrays(1, &m_vao);
-		glDeleteBuffers(1, &m_vbo);
-		glDeleteBuffers(1, &m_cbo);
-	}
-
 	void LineBatch::AddLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color)
 	{
-		m_vertices.push_back(start);
-		m_vertices.push_back(end);
-
 		const glm::vec3 direction = glm::normalize(end - start);
-		m_dirs.push_back(direction);
-		m_dirs.push_back(direction);
+		const auto normal = glm::vec3(0.0f, 1.0f, 0.0f); // Default normal (arbitrary)
+		const glm::vec3 tangent = direction;                 // Tangent aligns with direction
 
-		m_colors.push_back(color);
-		m_colors.push_back(color);
+		// Add start vertex
+		m_vertices.push_back({start, color, normal, tangent});
+		// Add end vertex
+		m_vertices.push_back({end, color, normal, tangent});
 	}
 
 	void LineBatch::InitBuffers()
@@ -156,34 +151,39 @@ namespace Hex
 
 		if (m_buffers_initialized) return;
 
-		glGenBuffers(1, &m_cbo);
-		glGenBuffers(1, &m_dbo);
+		glGenBuffers(1, &m_vbo);
 
-		// Initialize vertex buffer 
+		// Initialize vertex buffer
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 		glBufferData(GL_ARRAY_BUFFER,
-			static_cast<GLsizeiptr>(m_vertices.size() * sizeof(glm::vec3)),
-			m_vertices.data(),
-			GL_STATIC_DRAW
-		);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+					 static_cast<GLsizeiptr>(m_vertices.size() * sizeof(Vertex)),
+					 m_vertices.data(),
+					 GL_STATIC_DRAW);
+
+		// Set up vertex attributes
+		glBindVertexArray(m_vao);
+
+		// Position attribute (location = 0)
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, position)));
 		glEnableVertexAttribArray(0);
 
-		// Initialize color buffer
-		glBindBuffer(GL_ARRAY_BUFFER, m_cbo);
-		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_colors.size() * sizeof(glm::vec3)), m_colors.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+		// Color attribute (location = 1)
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, color)));
 		glEnableVertexAttribArray(1);
 
-		// Initialize dirs buffer
-		glBindBuffer(GL_ARRAY_BUFFER, m_dbo);
-		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_dirs.size() * sizeof(glm::vec3)), m_dirs.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+		// Normal attribute (location = 2)
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, normal)));
 		glEnableVertexAttribArray(2);
-		
-		// Unbind VAO and color buffer
+
+		// Tangent attribute (location = 3)
+		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, tangent)));
+		glEnableVertexAttribArray(3);
+
+		// Unbind VAO and buffer
 		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0); 
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		m_buffers_initialized = true;
 	}
 
 	void LineBatch::Draw()
@@ -197,24 +197,73 @@ namespace Hex
 		glBindVertexArray(0);
 	}
 
-	UVSphere::UVSphere(const float radius, const unsigned int sector_count, const unsigned int stack_count,
-		glm::vec3 position)
+	SphereBatch::SphereBatch()
 	{
-		m_cull_back_face = true;
+		m_cull_back_face = false;
 		m_shaded = true;
-		GenerateSphereVertices(radius, sector_count, stack_count);
-
-		m_model_matrix = glm::translate(m_model_matrix, position);
 	}
 
-	UVSphere::~UVSphere()
+	SphereBatch::~SphereBatch()
 	{
 		glDeleteVertexArrays(1, &m_vao);
 		glDeleteBuffers(1, &m_vbo);
 		glDeleteBuffers(1, &m_ebo);
 	}
 
-	void UVSphere::InitBuffers()
+	void SphereBatch::AddSphere(const glm::vec3& position, const float& radius,
+							const glm::vec3& color, const unsigned int sector_count, const unsigned int stack_count)
+	{
+		auto pi = glm::pi<float>();
+
+		const float sector_step = 2.f * pi / static_cast<float>(sector_count);
+		const float stack_step = pi / static_cast<float>(stack_count);
+
+		// Track current vertex offset
+		unsigned int vertex_offset = static_cast<unsigned int>(m_vertices.size());
+
+		for (unsigned int i = 0; i <= stack_count; ++i) {
+			const float stack_angle = pi / 2 - static_cast<float>(i) * stack_step;
+			const float xy = radius * cosf(stack_angle);
+			const float z = radius * sinf(stack_angle);
+
+			for (unsigned int j = 0; j <= sector_count; ++j) {
+				const float sector_angle = static_cast<float>(j) * sector_step;
+
+				float x = xy * cosf(sector_angle);
+				float y = xy * sinf(sector_angle);
+
+				glm::vec3 local_position = {x, y, z};
+				glm::vec3 world_position = local_position + position;
+				glm::vec3 normal = glm::normalize(world_position - position);
+				glm::vec3 tangent = glm::normalize(glm::vec3(-y, x, 0.0f)); // Arbitrary tangent
+
+				// Add vertex to global list
+				m_vertices.push_back({world_position, color, normal, tangent});
+			}
+		}
+
+		// Generate indices
+		for (unsigned int i = 0; i < stack_count; ++i) {
+			unsigned int k1 = i * (sector_count + 1) + vertex_offset;
+			unsigned int k2 = k1 + sector_count + 1;
+
+			for (unsigned int j = 0; j < sector_count; ++j, ++k1, ++k2) {
+				if (i != 0) {
+					m_indices.push_back(k1);
+					m_indices.push_back(k1 + 1);
+					m_indices.push_back(k2);
+				}
+
+				if (i != (stack_count - 1)) {
+					m_indices.push_back(k1 + 1);
+					m_indices.push_back(k2 + 1);
+					m_indices.push_back(k2);
+				}
+			}
+		}
+	}
+
+	void SphereBatch::InitBuffers()
 	{
 		Primitive::InitBuffers();
 
@@ -222,88 +271,44 @@ namespace Hex
 
 		glGenBuffers(1, &m_ebo);
 
-		// Generate VBO for vertex positions
+		// Initialize VBO for vertex data
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_vertices.size() * sizeof(glm::vec3)), m_vertices.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_vertices.size() * sizeof(Vertex)), m_vertices.data(), GL_STATIC_DRAW);
+
+		glBindVertexArray(m_vao);
+
+		// Position attribute (location = 0)
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
 		glEnableVertexAttribArray(0);
 
-		// Generate EBO for indices
-		glGenBuffers(1, &m_ebo);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size()) * sizeof(unsigned int), m_indices.data(), GL_STATIC_DRAW);
-
-		// Generate VBO for normals (optional)
-		GLuint normal_vbo;
-		glGenBuffers(1, &normal_vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, normal_vbo);
-		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_normals.size() * sizeof(glm::vec3)), m_normals.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+		// Color attribute (location = 1)
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
 		glEnableVertexAttribArray(1);
 
-		glBindVertexArray(0); // Unbind the VAO
-		glBindBuffer(GL_ARRAY_BUFFER, 0); // Unbind VBO
+		// Normal attribute (location = 2)
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+		glEnableVertexAttribArray(2);
+
+		// Tangent attribute (location = 3)
+		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tangent));
+		glEnableVertexAttribArray(3);
+
+		// Initialize EBO for indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size() * sizeof(unsigned int)), m_indices.data(), GL_STATIC_DRAW);
+
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		m_buffers_initialized = true;
 	}
 
-	void UVSphere::Draw()
+	void SphereBatch::Draw()
 	{
-		//VAO gets bound here
 		Primitive::Draw();
 
-		// Draw the triangles
+		glBindVertexArray(m_vao);
 		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()), GL_UNSIGNED_INT, nullptr);
-
-		// Unbind the VAO
 		glBindVertexArray(0);
-	}
-
-	void UVSphere::GenerateSphereVertices(const float radius, const unsigned int sector_count, const unsigned int stack_count)
-	{
-		auto pi = glm::pi<float>();
-
-		const float length_inv = 1.0f / radius;
-
-		const float sector_step = 2.f * pi / static_cast<float>(sector_count);
-		const float stack_step = pi / static_cast<float>(stack_count);
-
-		for (unsigned int i = 0; i <= stack_count; ++i) {
-			const float stack_angle = pi / 2 - static_cast<float>(i) * stack_step;
-			const float xy = radius * cosf(stack_angle);
-			float z = radius * sinf(stack_angle);
-
-			for (unsigned int j = 0; j <= sector_count; ++j) {
-				const float sector_angle = static_cast<float>(j) * sector_step;
-
-				float x = xy * cosf(sector_angle);
-				float y = xy * sinf(sector_angle);
-				m_vertices.emplace_back(x, y, z);
-
-				const float nx = x * length_inv;
-				const float ny = y * length_inv;
-				const float nz = z * length_inv;
-				glm::vec3 normal = {nx, ny, nz};
-				normal = glm::normalize(normal);
-				m_normals.emplace_back(normal);
-			}
-		}
-
-		for (unsigned int i = 0; i < stack_count; ++i) {
-			unsigned int k1 = i * (sector_count + 1);
-			unsigned int k2 = k1 + sector_count + 1;
-
-			for (unsigned int j = 0; j < sector_count; ++j, ++k1, ++k2) {
-				if (i != 0) {
-					m_indices.push_back(k1);
-					m_indices.push_back(k2);
-					m_indices.push_back(k1 + 1);
-				}
-
-				if (i != (stack_count - 1)) {
-					m_indices.push_back(k1 + 1);
-					m_indices.push_back(k2);
-					m_indices.push_back(k2 + 1);
-				}
-			}
-		}
 	}
 }
