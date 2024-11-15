@@ -8,6 +8,7 @@ This project uses CMake and GitHub Actions for CI to ensure cross-platform compa
 ### Features
 - Cross-platform support
 - OpenGL rendering
+- [Go here for more details](https://github.com/ralphwarrand/Hexahedron/wiki)
 
 ### Future goals
 - MDI
