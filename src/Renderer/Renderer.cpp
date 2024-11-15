@@ -5,102 +5,37 @@
 #include "Engine/Application.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Camera.h"
+#include <Renderer/ShaderManager.h>
 
 //Lib
+#define GLM_ENABLE_EXPERIMENTAL
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/random.hpp>
+#include <glm/gtx/string_cast.hpp>
 //#include <fmt/core.h>
 
 
 namespace Hex
 {
-	Renderer::Renderer(const AppSpecification& application_spec)
+	// Custom deleter function for GLFWwindow
+	static void GLFWwindowDeleter(GLFWwindow* window) {
+		if (window) {
+			glfwDestroyWindow(window);
+		}
+	}
+
+	Renderer::Renderer(const AppSpecification& application_spec): m_window(nullptr, GLFWwindowDeleter)
 	{
 		Init(application_spec);
-
-		const auto line_shader = std::make_shared<Shader>(
-			RESOURCES_PATH "shaders/line.vert",
-			RESOURCES_PATH "shaders/line.frag"
-		);
-		
-		AddPrimitive<LineBatch>();
-		m_primitives.back()->SetShaderProgram(line_shader);
-		if (auto* line_batch = dynamic_cast<LineBatch*>(m_primitives.back().get())) DrawOrigin(*line_batch);
-
-		const auto debug_shader = std::make_shared<Shader>(
-			RESOURCES_PATH "shaders/debug.vert",
-			RESOURCES_PATH "shaders/debug.frag"
-		);
-		
-		AddPrimitive<UVSphere>(2.f, 80, 40);
-		m_primitives.back()->SetShaderProgram(debug_shader);
-
-		AddPrimitive<UVSphere>(2.f, 80, 40, glm::vec3(10.f, 10.f, 0.f));
-		m_primitives.back()->SetShaderProgram(debug_shader);
-
-		AddPrimitive<UVSphere>(2.f, 80, 40, glm::vec3(-10.f, 10.f, 0.f));
-		m_primitives.back()->SetShaderProgram(debug_shader);
 	}
 
 	Renderer::~Renderer()
 	{
-		glfwDestroyWindow(m_window);
-		delete m_camera;
-	}
 
-	void Renderer::Tick()
-	{
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glEnable(GL_DEPTH_TEST);
-		
-		m_render_data = {
-			m_camera->GetViewMatrix(),
-			m_camera->GetProjectionMatrix(),
-			m_camera->GetPosition()
-		};
-		
-		for (const auto& primitive : m_primitives)
-		{
-			primitive->SetRenderData(m_render_data);
-			//Set culling
-			if(primitive->ShouldCullBackFaces())
-			{
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_BACK);
-			}
-			
-			// Retrieve shader from primitive and bind
-			const auto shader = primitive->GetShaderProgram();
-			if(shader == nullptr)
-			{
-				Log(LogLevel::Error, "Failed to get shader program");
-			}
-			shader->Bind();
-			
-			// Set uniforms
-			shader->SetUniformMat4("model", primitive->GetModelMatrix());
-			shader->SetUniform1i("shade", primitive->ShouldShade());
-			
-			primitive->Draw();
-
-			Hex::Shader::Unbind();
-
-			glDisable(GL_CULL_FACE);
-		}
-		
-		glfwSwapBuffers(m_window);
-	}
-
-	::GLFWwindow* Renderer::GetWindow() const
-	{
-		return m_window;
-	}
-
-	Camera* Renderer::GetCamera() const
-	{
-		return m_camera;
 	}
 
 	void Renderer::Init(const AppSpecification& app_spec)
@@ -110,11 +45,142 @@ namespace Hex
 		
 		glEnable(GL_DEBUG_OUTPUT);
 		
-		m_camera = new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f);
+		m_camera.reset(new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f));
+
+		CreateTestScene();
 
 		SetupCallBacks();
 		
-		glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(m_window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+		if(app_spec.vsync)
+		{
+			glfwSwapInterval(1); // Enable VSync
+		}
+		else
+		{
+			glfwSwapInterval(0); // Disable VSync
+		}
+
+	}
+
+	void Renderer::Tick(const float& delta_time)
+	{
+		// Start the ImGui frame
+		StartImGuiFrame();
+		ShowDebugUI(delta_time);
+
+		// Render ImGui
+		ImGui::Render();
+
+    	// Clear the screen at the start of the frame
+    	int display_w, display_h;
+    	glfwGetFramebufferSize(m_window.get(), &display_w, &display_h);
+    	glViewport(0, 0, display_w, display_h);
+
+    	// Clear color and depth buffers
+    	glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Set the background color
+    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    	// Enable depth testing
+    	glEnable(GL_DEPTH_TEST);
+
+		m_camera->ProcessKeyboardInput(m_window.get(), delta_time);
+		m_camera->Tick(delta_time);
+
+    	// Update and render 3D content
+    	UpdateRenderData();
+    	for (const auto primitive : m_primitives)
+    	{
+    	    primitive->SetRenderData(m_render_data);
+
+    	    if (primitive->ShouldCullBackFaces())
+    	    {
+    	        glEnable(GL_CULL_FACE);
+    	        glCullFace(GL_BACK);
+    	    }
+
+    	    const auto shader = primitive->GetShaderProgram();
+    	    if (!shader)
+    	    {
+    	        Log(LogLevel::Error, "Failed to get shader program");
+    	        continue;
+    	    }
+    	    shader->Bind();
+    	    shader->SetUniformMat4("model", primitive->GetModelMatrix());
+    	    shader->SetUniform1i("shade", primitive->ShouldShade());
+    	    primitive->Draw();
+    	    Hex::Shader::Unbind();
+
+    	    glDisable(GL_CULL_FACE);
+    	}
+
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    	// Handle multi-viewports
+    	ImGuiIO& io = ImGui::GetIO();
+    	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    	{
+    		// Save the current OpenGL context
+    		GLFWwindow* backup_context = glfwGetCurrentContext();
+
+    		// Update and render all platform windows
+    		ImGui::UpdatePlatformWindows();
+    		ImGui::RenderPlatformWindowsDefault();
+
+    		// Restore the saved context
+    		glfwMakeContextCurrent(backup_context);
+    	}
+
+    	// Swap buffers at the end
+    	glfwSwapBuffers(m_window.get());
+	}
+
+	void Renderer::CreateTestScene()
+	{
+		const auto debug_shader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/debug.vert",
+			RESOURCES_PATH "shaders/debug.frag"
+		);
+
+		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
+
+		constexpr int rows = 40;
+		constexpr int columns = 40;
+
+		for (int i = 0; i < rows * columns; i++) {
+			constexpr float spacing = 4.f;
+
+			const int x = i % columns;      // Calculate x based on the remainder
+			const int z = i / columns;      // Calculate z based on the quotient
+
+			glm::vec3 random_colour = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+
+			//GetOrCreateLineBatch()->AddLine(
+			//	glm::vec3(1 + x * spacing, 0.f, 1 + z * spacing),
+			//	glm::vec3(1 + x * spacing, 10.f, 1 + z * spacing),
+			//	random_colour
+			//);
+
+			auto* sphere = AddAndGetPrimitive<UVSphere>(1.f, 36, 18, glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing));
+
+			if(i == rows * columns - 1)
+			{
+				Test = sphere;
+			}
+
+			sphere->SetShaderProgram(debug_shader);
+		}
+	}
+
+	void Renderer::RemovePrimitive(Primitive *primitive)
+	{
+		std::erase_if(m_primitives, [primitive](const auto& p) { return p.get() == primitive; });
+
+		// If the removed primitive was the cached LineBatch, reset the cache
+		if (primitive == m_cached_line_batch) {
+			m_cached_line_batch = nullptr;
+		}
 	}
 
 	void Renderer::InitOpenGLContext(const AppSpecification& app_spec)
@@ -135,11 +201,11 @@ namespace Hex
 
 		if(app_spec.fullscreen)
 		{
-			m_window = glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), glfwGetPrimaryMonitor(), nullptr);
+			m_window.reset(glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), glfwGetPrimaryMonitor(), nullptr));
 		}
 		else
 		{
-			m_window = glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), nullptr, nullptr);
+			m_window.reset(glfwCreateWindow(app_spec.width, app_spec.height, app_spec.name.c_str(), nullptr, nullptr));
 		}
 		
 		if (!m_window)
@@ -158,7 +224,7 @@ namespace Hex
 		});
 
 
-		glfwMakeContextCurrent(m_window);
+		glfwMakeContextCurrent(m_window.get());
 
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 		{
@@ -171,15 +237,15 @@ namespace Hex
 
 	void Renderer::SetupCallBacks()
 	{
-		glfwSetWindowUserPointer(m_window, this);
+		glfwSetWindowUserPointer(m_window.get(), this);
 		
-		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
-			[[maybe_unused]] const void* user_param) {
-			std::cerr << "OpenGL Debug Message: " << message << '\n';
-			}, nullptr
-		);
+		//glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
+		//	[[maybe_unused]] const void* user_param) {
+		//	std::cerr << "OpenGL Debug Message: " << message << '\n';
+		//	}, nullptr
+		//);
 
-		glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, const double x_delta, const double y_delta)
+		glfwSetCursorPosCallback(m_window.get(), [](GLFWwindow* window, const double x_delta, const double y_delta)
 		{
 			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 					
@@ -201,13 +267,13 @@ namespace Hex
 			self->m_camera->ProcessMouseInput(x_offset, y_offset);
 		});
 
-		glfwSetScrollCallback(m_window, [](GLFWwindow* window, double xoffset, const double yoffset)
+		glfwSetScrollCallback(m_window.get(), [](GLFWwindow* window, double xoffset, const double yoffset)
 		{
 			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
 		});
 
-		glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* window, const int width, const int height)
+		glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)
 		{
 			glViewport(0, 0, width, height);
 		});
@@ -215,15 +281,117 @@ namespace Hex
 
 	void Renderer::LogRendererInfo()
 	{
-		//log glfw version
-	//	Log(LogLevel::Info, std::format("Running GLFW {}", reinterpret_cast<const char*>(glfwGetVersionString())));
-//
-	//	//log opengl version
-	//	Log(LogLevel::Info, std::format("Running OpenGL {}", reinterpret_cast<const char*>(glGetString(GL_VERSION))));
-	//	Log(LogLevel::Info, std::format("Running GLSL {}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION))));
-	//	Log(LogLevel::Info, std::format("Using GPU: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER))));
-//
-	//	Log(LogLevel::Info, "Renderer Initialised\n");
+		Log(LogLevel::Info, std::format("Running GLFW {}", reinterpret_cast<const char*>(glfwGetVersionString())));
+		Log(LogLevel::Info, std::format("Running OpenGL {}", reinterpret_cast<const char*>(glGetString(GL_VERSION))));
+		Log(LogLevel::Info, std::format("Running GLSL {}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION))));
+		Log(LogLevel::Info, std::format("Using GPU: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER))));
+		Log(LogLevel::Info, "Renderer Initialised\n");
+	}
+
+	LineBatch* Renderer::GetOrCreateLineBatch()
+	{
+		// If the LineBatch is already cached, return it
+		if (m_cached_line_batch) {
+			return m_cached_line_batch;
+		}
+
+		// If not found in the cache, create a new LineBatch
+		m_cached_line_batch = AddAndGetPrimitive<LineBatch>();
+
+		const auto line_shader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/line.vert",
+			RESOURCES_PATH "shaders/line.frag"
+		);
+
+		m_cached_line_batch->SetShaderProgram(line_shader);
+
+		return m_cached_line_batch;
+	}
+
+	GLFWwindow* Renderer::GetWindow() const
+	{
+		return m_window.get();
+	}
+
+	Camera* Renderer::GetCamera() const
+	{
+		return m_camera.get();
+	}
+
+	void Renderer::UpdateRenderData() {
+		m_render_data.view = m_camera->GetViewMatrix();
+		m_render_data.projection = m_camera->GetProjectionMatrix();
+		m_render_data.view_pos = m_camera->GetPosition();
+		m_render_data.padding = 0.0f; // Explicitly set the padding to 0
+		m_render_data.wireframe = m_wireframe_mode; // Update the wireframe mode
+	}
+
+	void Renderer::StartImGuiFrame()
+	{
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		// Create a dock space directly over the viewport
+		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+	}
+
+	void Renderer::ShowDebugUI(const float& delta_time)
+	{
+		ImGui::Begin("Main Window");
+
+		ImGui::Text("Hello, world!");
+		ImGui::Separator();
+
+		if (ImGui::CollapsingHeader("Rendering Metrics"))
+		{
+			ImGui::Text("FPS: %.1f", 1.0f / delta_time);
+			ImGui::Text("Frame-time: %.6f ms", delta_time * 1000.0f, delta_time);
+		}
+
+		//if (ImGui::CollapsingHeader("Rendering Settings"))
+		//{
+		//	ImGui::SliderFloat("Ambient Light", nullptr, 0.0f, 1.0f);
+		//	ImGui::SliderFloat("Diffuse Intensity", nullptr, 0.0f, 1.0f);
+		//}
+
+
+		if (ImGui::CollapsingHeader("Scene Information"))
+		{
+			ImGui::Text("Active Primitives: %d", static_cast<int>(m_primitives.size()));
+			ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
+						m_camera->GetPosition().x,
+						m_camera->GetPosition().y,
+						m_camera->GetPosition().z);
+			ImGui::Separator();
+			ImGui::Text("Camera View: %s", glm::to_string(m_camera->GetViewMatrix()).c_str());
+			ImGui::Text("Test View: %s", glm::to_string(Test->GetRenderData().view).c_str());
+			ImGui::Separator();
+			ImGui::Text("Camera Proj: %s", glm::to_string(m_camera->GetProjectionMatrix()).c_str());
+			ImGui::Text("Test Proj: %s", glm::to_string(Test->GetRenderData().projection).c_str());
+			ImGui::Separator();
+			ImGui::Text("Test Matrix: %s", glm::to_string(Test->GetModelMatrix()).c_str());
+
+
+		}
+
+
+
+		if (ImGui::Button("Toggle Wireframe"))
+		{
+			m_wireframe_mode = !m_wireframe_mode; // Toggle the state
+
+			if (m_wireframe_mode)
+			{
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Enable wireframe
+			}
+			else
+			{
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Enable default fill mode
+			}
+		}
+
+		ImGui::End();
 	}
 
 	void Renderer::DrawOrigin(LineBatch& line_batch)

@@ -1,9 +1,12 @@
 #version 410
 
 layout(std140) uniform RenderData {
-    mat4 view;
-    mat4 projection;
-    vec3 view_pos;
+    mat4 view;         // 64 bytes
+    mat4 projection;   // 64 bytes
+    vec3 view_pos;     // 12 bytes
+    float padding;     // 4 bytes
+    bool wireframe;    // 4 bytes
+    float padding2[3]; // 12 bytes (padding to align to 16 bytes)
 };
 
 in vec3 fragPosition;

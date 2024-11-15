@@ -2,6 +2,9 @@
 //STL
 #include <string>
 #include <cstdint>
+#include <memory>
+
+struct GLFWwindow;
 
 namespace Hex
 {
@@ -15,6 +18,7 @@ namespace Hex
 		uint16_t width = 1600;
 		uint16_t height = 900;
 		bool fullscreen = false;
+		bool vsync = true;
 	};
 
 	class Application
@@ -33,11 +37,17 @@ namespace Hex
 		void Run() const;
 		void Close();
 	
-	private:		
+	private:
+		// Application init functions
 		void Init(const AppSpecification& application_spec);
-		
-		AppSpecification m_specification;
-		bool m_running = false;
-		Renderer* m_renderer = nullptr;
+		static void InitTimezone();
+
+		static void InitImgui(GLFWwindow* window);
+
+		// Application guts
+		std::unique_ptr<Renderer> m_renderer{nullptr};
+
+		AppSpecification m_specification{};
+		bool m_running{false};
 	};
 }

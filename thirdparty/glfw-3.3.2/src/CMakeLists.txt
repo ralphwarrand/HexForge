@@ -79,6 +79,7 @@ if (APPLE)
                                 LANGUAGE C)
 endif()
 
+cmake_policy(SET CMP0069 NEW)
 add_library(glfw ${glfw_SOURCES} ${glfw_HEADERS})
 set_target_properties(glfw PROPERTIES
                       OUTPUT_NAME ${GLFW_LIB_NAME}

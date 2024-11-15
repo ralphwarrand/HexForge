@@ -5,9 +5,12 @@ layout(location = 1) in vec3 color;
 layout(location = 2) in vec3 dir;
 
 layout(std140) uniform RenderData {
-    mat4 view;
-    mat4 projection;
-    vec3 view_pos;
+    mat4 view;         // 64 bytes
+    mat4 projection;   // 64 bytes
+    vec3 view_pos;     // 12 bytes
+    float padding;     // 4 bytes
+    bool wireframe;    // 4 bytes
+    float padding2[3]; // 12 bytes (padding to align to 16 bytes)
 };
 
 out vec3 fragColor;

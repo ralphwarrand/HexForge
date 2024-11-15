@@ -1,6 +1,8 @@
 // dear imgui, v1.89.5 WIP
 // (headers)
 
+#define IMGUI_ENABLE_DOCKING
+
 // Help:
 // - Read FAQ at http://dearimgui.org/faq
 // - Newcomers, read 'Programmer guide' in imgui.cpp for notes on how to setup Dear ImGui in your codebase.

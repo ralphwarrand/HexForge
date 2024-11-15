@@ -34,11 +34,15 @@ namespace Hex
 		// Getters and setters
 		void SetModelMatrix(const glm::mat4& model_matrix);
 		[[nodiscard]] const glm::mat4& GetModelMatrix() const;
+
 		void SetShaderProgram(const std::shared_ptr<Shader>& shader);
 		[[nodiscard]] Shader* GetShaderProgram() const;
+
 		void SetMaterial(Material* material);
 		[[nodiscard]] const Material* GetMaterial() const;
+
 		void SetRenderData(const RenderData& render_data);
+		[[nodiscard]] const RenderData GetRenderData() const;
 
 		// Render defs
 		[[nodiscard]] bool ShouldCullBackFaces() const;
@@ -80,7 +84,7 @@ namespace Hex
 		std::vector<glm::vec3> m_dirs;
 	};
 
-	class UVSphere: public Primitive
+	class UVSphere final : public Primitive
 	{
 	public:
 		explicit UVSphere(float radius = 1.0f, unsigned int sector_count = 36, unsigned int stack_count = 18,

@@ -1,9 +1,12 @@
 #version 410
 
 layout(std140) uniform RenderData {
-    mat4 view;
-    mat4 projection;
-    vec3 view_pos;
+    mat4 view;         // 64 bytes
+    mat4 projection;   // 64 bytes
+    vec3 view_pos;     // 12 bytes
+    float padding;     // 4 bytes
+    bool wireframe;    // 4 bytes
+    float padding2[3]; // 12 bytes (padding to align to 16 bytes)
 };
 
 struct Material {
@@ -24,7 +27,7 @@ void main()
 {
     vec3 objectColor = vec3(1.0f, 1.0f, 0.0f);
     
-    if(shade)
+    if(shade && !wireframe)
     {
         vec3 lightPosition = vec3(0.0f, 1000.0f, 1000.0f);
         vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);

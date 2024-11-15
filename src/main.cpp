@@ -6,6 +6,7 @@ int main() {
     spec.width = 1920;
     spec.height = 1080;
     spec.fullscreen = false;
+    spec.vsync = false;
 
     const auto application = Hex::Application(spec);
     application.Run();

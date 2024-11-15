@@ -4,9 +4,11 @@
 #include "Engine/Logger.h"
 
 //Lib
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 namespace Hex
 {
@@ -59,6 +61,7 @@ namespace Hex
 
 		// Bind the VAO
 		glBindVertexArray(m_vao);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo);
 	}
 
 	void Primitive::SetModelMatrix(const glm::mat4& model_matrix)
@@ -104,6 +107,11 @@ namespace Hex
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderData), nullptr, GL_DYNAMIC_DRAW); // Orphan old data
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+
+	const RenderData Primitive::GetRenderData() const
+	{
+		return m_render_data;
 	}
 
 	bool Primitive::ShouldCullBackFaces() const
@@ -239,6 +247,7 @@ namespace Hex
 
 	void UVSphere::Draw()
 	{
+		//VAO gets bound here
 		Primitive::Draw();
 
 		// Draw the triangles
