@@ -1,5 +1,5 @@
 #pragma once
-#include "Renderer\Primitives\PrimitiveBase.h"
+#include "Renderer/Primitives/PrimitiveBase.h"
 
 namespace Hex
 {
