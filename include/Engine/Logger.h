@@ -24,8 +24,8 @@ namespace Hex
 		std::ofstream ofs("log.txt", std::ios_base::app | std::ios_base::out);
 
 		auto now = std::chrono::system_clock::now();
-		auto local_time = date::format("%F %T", date::make_zoned(date::current_zone(), now));
-		std::string log = fmt::format("Current time: {}", local_time);
+		auto local_time = date::format("%F %H:%M:%S", date::make_zoned(date::current_zone(), now));
+		std::string log = fmt::format("{}", local_time);
 
 		switch (log_level) {
 		case LogLevel::Debug:

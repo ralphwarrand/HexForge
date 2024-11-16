@@ -1,6 +1,8 @@
 //Hex
 #include "Renderer/Renderer.h"
-#include "Renderer/Primitives.h"
+#include "Renderer/Primitives/PrimitiveBase.h"
+#include "Renderer/Primitives/LineBatch.h"
+#include "Renderer/Primitives/SphereBatch.h"
 #include "Engine/Logger.h"
 #include "Engine/Application.h"
 #include "Renderer/Shader.h"
@@ -13,11 +15,8 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/string_cast.hpp>
-//#include <fmt/core.h>
-
 
 namespace Hex
 {
@@ -143,12 +142,6 @@ namespace Hex
 		constexpr int rows = 40;
 		constexpr int columns = 40;
 
-		GetOrCreateSphereBatch()->AddSphere(
-			glm::vec3(0.f),
-			1.f,
-			{1.f, 0.f, 1.f}
-		);
-
 		for (int i = 0; i < rows * columns; i++) {
 			constexpr float spacing = 4.f;
 
@@ -163,11 +156,12 @@ namespace Hex
 				random_colour
 			);
 
-			GetOrCreateSphereBatch()->AddSphere(
-				glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing),
-				1.f,
-				random_colour
-			);
+			//TODO: Sphere hashing
+			//GetOrCreateSphereBatch()->AddSphere(
+			//	glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing),
+			//	0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
+			//	random_colour
+			//);
 		}
 	}
 

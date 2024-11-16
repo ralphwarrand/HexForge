@@ -10,6 +10,7 @@ namespace Hex
 {
 	// Forward declaration
 	class Renderer;
+	class ResourceManager;
 
 	// Struct containing parameters to set application settings
 	struct AppSpecification 
@@ -46,6 +47,7 @@ namespace Hex
 
 		// Application guts
 		std::unique_ptr<Renderer> m_renderer{nullptr};
+		std::unique_ptr<ResourceManager> m_resource_manager{nullptr};
 
 		AppSpecification m_specification{};
 		bool m_running{false};

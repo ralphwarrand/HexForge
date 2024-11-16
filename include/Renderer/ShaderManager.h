@@ -1,3 +1,5 @@
+#pragma once
+
 //Hex
 #include "Renderer/Shader.h"
 

@@ -3,6 +3,8 @@
 #include "Engine/Logger.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Camera.h"
+#include "Engine/ResourceManagement/ResourceManager.h"
+#include "Engine/ResourceManagement/TextureResource.h"
 
 //Lib
 #include <GLFW/glfw3.h>
@@ -14,6 +16,7 @@
 
 //STL
 #include <cstdlib>
+#include <Engine/Application.h>
 
 namespace Hex
 {
@@ -39,8 +42,24 @@ namespace Hex
 	{
 		InitTimezone();
 
+		m_resource_manager = std::make_unique<ResourceManager>();
 		m_renderer = std::make_unique<Renderer>(application_spec);
 		InitImgui(m_renderer->GetWindow());
+
+
+
+		// Load a texture
+		auto texture = m_resource_manager->loadResource<Hex::TextureResource>(RESOURCES_PATH "textures/debug/test.bmp");
+
+		if (texture)
+		{
+			std::cout << "Texture loaded successfully!" << std::endl;
+			std::cout << "Width: " << texture->width << ", Height: " << texture->height << std::endl;
+		}
+		else
+		{
+			std::cerr << "Failed to load texture." << std::endl;
+		}
 
 
 		m_specification = application_spec;
