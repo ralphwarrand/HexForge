@@ -3,11 +3,12 @@
 #include "Renderer/Primitives/PrimitiveBase.h"
 #include "Renderer/Primitives/LineBatch.h"
 #include "Renderer/Primitives/SphereBatch.h"
+#include "Renderer/Primitives/CubeBatch.h"
 #include "Engine/Logger.h"
 #include "Engine/Application.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Camera.h"
-#include <Renderer/ShaderManager.h>
+#include "Renderer/ShaderManager.h"
 
 //Lib
 #define GLM_ENABLE_EXPERIMENTAL
@@ -67,10 +68,6 @@ namespace Hex
 	{
 		// Start the ImGui frame
 		StartImGuiFrame();
-		ShowDebugUI(delta_time);
-
-		// Render ImGui
-		ImGui::Render();
 
     	// Clear the screen at the start of the frame
     	int display_w, display_h;
@@ -108,28 +105,13 @@ namespace Hex
     	    shader->Bind();
     	    shader->SetUniformMat4("model", primitive->GetModelMatrix());
     	    shader->SetUniform1i("shade", primitive->ShouldShade());
-    	    primitive->Draw();
+    		primitive->Draw();
     	    Hex::Shader::Unbind();
 
     	    glDisable(GL_CULL_FACE);
     	}
 
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    	// Handle multi-viewports
-    	ImGuiIO& io = ImGui::GetIO();
-    	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    	{
-    		// Save the current OpenGL context
-    		GLFWwindow* backup_context = glfwGetCurrentContext();
-
-    		// Update and render all platform windows
-    		ImGui::UpdatePlatformWindows();
-    		ImGui::RenderPlatformWindowsDefault();
-
-    		// Restore the saved context
-    		glfwMakeContextCurrent(backup_context);
-    	}
+		EndImGuiFrame(delta_time);
 
     	// Swap buffers at the end
     	glfwSwapBuffers(m_window.get());
@@ -137,6 +119,8 @@ namespace Hex
 
 	void Renderer::CreateTestScene()
 	{
+		m_light_pos = glm::vec3(1.f, 1.f, 1.f);
+
 		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
 
 		constexpr int rows = 40;
@@ -157,11 +141,17 @@ namespace Hex
 			);
 
 			//TODO: Sphere hashing
-			//GetOrCreateSphereBatch()->AddSphere(
-			//	glm::vec3(1 + x * spacing, 0.f, -1 -z * spacing),
-			//	0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
-			//	random_colour
-			//);
+			GetOrCreateSphereBatch()->AddSphere(
+				glm::vec3(2 + x * spacing, 0.f, -2 + -z * spacing),
+				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
+				random_colour
+			);
+
+			GetOrCreateCubeBatch()->AddCube(
+				glm::vec3(-2 -1.f * x * spacing, 0.f,-2 -1.f * z * spacing), // Position
+				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),														// Size
+				random_colour                                     //	 Color
+			);
 		}
 	}
 
@@ -190,6 +180,9 @@ namespace Hex
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+		//TODO: Remove from release build?
+		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
 		if(app_spec.fullscreen)
 		{
@@ -224,6 +217,12 @@ namespace Hex
 		}
 
 		glViewport(0, 0, app_spec.width, app_spec.height);
+
+		int flags;
+		glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+		if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+			Log(LogLevel::Info, "OpenGL debug context enabled");
+		}
 
 	}
 
@@ -320,6 +319,27 @@ namespace Hex
 		return m_cached_sphere_batch;
 	}
 
+	CubeBatch* Renderer::GetOrCreateCubeBatch()
+	{
+		// If the CubeBatch is already cached, return it
+		if (m_cached_cube_batch) {
+			return m_cached_cube_batch;
+		}
+
+		// If not found in the cache, create a new CubeBatch
+		m_cached_cube_batch = AddAndGetPrimitive<CubeBatch>();
+
+		// Assign a shader program to the CubeBatch
+		const auto cube_shader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/debug.vert",
+			RESOURCES_PATH "shaders/debug.frag"
+		);
+
+		m_cached_cube_batch->SetShaderProgram(cube_shader);
+
+		return m_cached_cube_batch;
+	}
+
 	GLFWwindow* Renderer::GetWindow() const
 	{
 		return m_window.get();
@@ -330,12 +350,32 @@ namespace Hex
 		return m_camera.get();
 	}
 
-	void Renderer::UpdateRenderData() {
-		m_render_data.view = m_camera->GetViewMatrix();
-		m_render_data.projection = m_camera->GetProjectionMatrix();
+	void Renderer::UpdateRenderData()
+	{
+		// Update view and projection matrices from the camera
+		m_render_data.view = m_camera->GetViewMatrix();          // View matrix from the camera
+		m_render_data.projection = m_camera->GetProjectionMatrix(); // Projection matrix from the camera
+
+		// Update the camera's position
 		m_render_data.view_pos = m_camera->GetPosition();
-		m_render_data.padding = 0.0f; // Explicitly set the padding to 0
-		m_render_data.wireframe = m_wireframe_mode; // Update the wireframe mode
+
+		// Padding explicitly set to 0 (required for std140 uniform alignment)
+		m_render_data.padding1 = 0.0f;
+
+		// Update wireframe mode (bool is treated as 4-byte int in std140)
+		m_render_data.wireframe = m_wireframe_mode;
+
+		// Update light position
+		m_render_data.light_pos = m_light_pos;
+
+		// Ensure any other padding or alignment-specific fields are properly set (if applicable)
+		// Example: If additional padding is needed for future fields, initialize them here.
+	}
+
+	void Renderer::SetLightPos(const glm::vec3 &pos)
+	{
+		m_light_pos = pos;
+		m_render_data.light_pos = pos;
 	}
 
 	void Renderer::StartImGuiFrame()
@@ -348,12 +388,35 @@ namespace Hex
 		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 	}
 
+	void Renderer::EndImGuiFrame(const float& delta_time)
+	{
+		ShowDebugUI(delta_time);
+
+		// Render ImGui
+		ImGui::Render();
+
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		// Handle multi-viewports
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			// Save the current OpenGL context
+			GLFWwindow* backup_context = glfwGetCurrentContext();
+
+			// Update and render all platform windows
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+
+			// Restore the saved context
+			glfwMakeContextCurrent(backup_context);
+		}
+	}
+
 	void Renderer::ShowDebugUI(const float& delta_time)
 	{
-		ImGui::Begin("Main Window");
 
-		ImGui::Text("Hello, world!");
-		ImGui::Separator();
+		ImGui::Begin("Main Window");
 
 		if (ImGui::CollapsingHeader("Rendering Metrics"))
 		{
@@ -379,6 +442,26 @@ namespace Hex
 			ImGui::Text("Camera View: %s", glm::to_string(m_camera->GetViewMatrix()).c_str());
 			ImGui::Separator();
 			ImGui::Text("Camera Proj: %s", glm::to_string(m_camera->GetProjectionMatrix()).c_str());
+		}
+
+		if (ImGui::CollapsingHeader("Lighting Information"))
+		{
+			constexpr int active_lights_count = 1; //TODO: update to reflect actual light count
+			constexpr int selected_light_index = 1; //TODO: update to reflect actual selected light index
+
+			// Display static lighting information
+			ImGui::Text("Active Lights: %d", active_lights_count); // Assume active_lights_count is defined
+			ImGui::Text("Selected Light: %d", selected_light_index); // Assume selected_light_index is defined
+			ImGui::Text("Light Position:");
+
+			// Add interactive controls for editing the light position
+			if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
+			{
+				// Update light position
+				SetLightPos(m_light_pos);
+			}
+
+			ImGui::Separator();
 		}
 
 

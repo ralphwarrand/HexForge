@@ -20,5 +20,7 @@ namespace Hex
 
 	private:
 		std::vector<Vertex> m_vertices;
+
+		bool m_line_batch_buffers_initialized = false;
 	};
 }

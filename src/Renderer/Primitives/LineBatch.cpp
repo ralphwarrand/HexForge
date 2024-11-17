@@ -25,7 +25,7 @@ namespace Hex
 	{
 		Primitive::InitBuffers();
 
-		if (m_buffers_initialized) return;
+		if (m_line_batch_buffers_initialized) return;
 
 		glGenBuffers(1, &m_vbo);
 
@@ -59,7 +59,7 @@ namespace Hex
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		m_buffers_initialized = true;
+		m_line_batch_buffers_initialized = true;
 	}
 
 	void LineBatch::Draw()

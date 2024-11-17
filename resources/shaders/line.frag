@@ -1,12 +1,14 @@
-#version 410
+#version 420
 
-layout(std140) uniform RenderData {
+layout(std140, binding = 0) uniform RenderData {
     mat4 view;         // 64 bytes
     mat4 projection;   // 64 bytes
     vec3 view_pos;     // 12 bytes
-    float padding;     // 4 bytes
+    float padding1;    // 4 bytes (to align light_pos)
+    vec3 light_pos;    // 12 bytes
+    float padding2;    // 4 bytes (to align wireframe)
     bool wireframe;    // 4 bytes
-    float padding2[3]; // 12 bytes (padding to align to 16 bytes)
+    float padding3[3]; // 12 bytes (to align block to 16 bytes)
 };
 
 in vec3 fragPosition;

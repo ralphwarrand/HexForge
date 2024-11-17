@@ -2,13 +2,15 @@
 #include "Renderer/Primitives/SphereBatch.h"
 
 //Lib
+#include <iostream>
 #include <glm/ext/scalar_constants.hpp>
 
 namespace Hex
 {
 	SphereBatch::SphereBatch()
 	{
-		m_cull_back_face = false;
+		m_buffers_initialized = false;
+		m_cull_back_face = true;
 		m_shaded = true;
 	}
 
@@ -43,8 +45,11 @@ namespace Hex
 
 				glm::vec3 local_position = {x, y, z};
 				glm::vec3 world_position = local_position + position;
-				const glm::vec3 normal = glm::normalize(world_position - position);
-				const glm::vec3 tangent = glm::normalize(glm::vec3(-y, x, 0.0f)); // Arbitrary tangent
+				const glm::vec3 normal = glm::normalize(local_position);
+				glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), normal));
+				if (glm::length(tangent) < 0.0001f) {
+					tangent = glm::normalize(glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), normal));
+				}
 
 				// Add vertex to global list
 				m_vertices.push_back({world_position, color, normal, tangent});
@@ -59,14 +64,14 @@ namespace Hex
 			for (unsigned int j = 0; j < sector_count; ++j, ++k1, ++k2) {
 				if (i != 0) {
 					m_indices.push_back(k1);
-					m_indices.push_back(k1 + 1);
 					m_indices.push_back(k2);
+					m_indices.push_back(k1 + 1);
 				}
 
-				if (i != (stack_count - 1)) {
+				if (i != stack_count - 1) {
 					m_indices.push_back(k1 + 1);
-					m_indices.push_back(k2 + 1);
 					m_indices.push_back(k2);
+					m_indices.push_back(k2 + 1);
 				}
 			}
 		}
@@ -76,15 +81,19 @@ namespace Hex
 	{
 		Primitive::InitBuffers();
 
-		if (m_buffers_initialized) return;
+		if (m_sphere_buffers_initialized) return;
+
+		glBindVertexArray(m_vao);
 
 		glGenBuffers(1, &m_ebo);
+		if (m_ebo == 0) {
+			std::cerr << "Error: Failed to generate Element Buffer Object (EBO)" << std::endl;
+		}
 
 		// Initialize VBO for vertex data
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_vertices.size() * sizeof(Vertex)), m_vertices.data(), GL_STATIC_DRAW);
 
-		glBindVertexArray(m_vao);
 
 		// Position attribute (location = 0)
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
@@ -102,22 +111,59 @@ namespace Hex
 		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tangent));
 		glEnableVertexAttribArray(3);
 
+		if (m_indices.empty()) {
+			std::cerr << "Error: No indices available to initialize EBO" << std::endl;
+			return;
+		}
 		// Initialize EBO for indices
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size() * sizeof(unsigned int)), m_indices.data(), GL_STATIC_DRAW);
 
+		if (const GLenum error = glGetError(); error != GL_NO_ERROR) {
+			std::cerr << "OpenGL Error: " << error << " during EBO initialization" << std::endl;
+		}
+
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		m_buffers_initialized = true;
+		m_sphere_buffers_initialized = true;
 	}
 
 	void SphereBatch::Draw()
 	{
+		// Call to the parent class's Draw method.
 		Primitive::Draw();
 
-		glBindVertexArray(m_vao);
-		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()), GL_UNSIGNED_INT, nullptr);
-		glBindVertexArray(0);
+		try {
+			// Initialize buffers if not already done
+			if (!m_buffers_initialized) {
+				InitBuffers();
+				m_buffers_initialized = true;
+			}
+
+			// Debugging messages
+			//std::cout << "VAO: " << m_vao << ", Indices size: " << m_indices.size() << std::endl;
+
+			// Ensure VAO is valid
+			if (m_vao == 0) {
+				throw std::runtime_error("Invalid VAO");
+			}
+
+			// Ensure EBO is valid
+			if (m_ebo == 0) {
+				throw std::runtime_error("Invalid EBO");
+			}
+
+			// Ensure indices are not empty
+			if (m_indices.empty()) {
+				throw std::runtime_error("Indices are empty");
+			}
+
+			glBindVertexArray(m_vao);
+			glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()), GL_UNSIGNED_INT, nullptr);
+			glBindVertexArray(0);
+		} catch (const std::exception& e) {
+			std::cerr << "Exception caught in SphereBatch::Draw: " << e.what() << std::endl;
+		}
 	}
 }

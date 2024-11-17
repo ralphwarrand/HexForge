@@ -26,5 +26,7 @@ namespace Hex
 		GLuint m_ebo{};
 		std::vector<Vertex> m_vertices;
 		std::vector<unsigned int> m_indices;
+
+		bool m_sphere_buffers_initialized = false;
 	};
 }
