@@ -19,6 +19,8 @@ out vec4 color;       // Output color of the fragment
 
 void main()
 {
+    if(!wireframe)
+    {
     // Lighting parameters
     vec3 lightColor = vec3(1.0, 1.0, 1.0);       // Light color
     float ambientStrength = 1.f;                // Ambient light strength
@@ -58,4 +60,9 @@ void main()
     vec3 result = (specular + ambient + diffuse) * fragColor;
 
     color = vec4(result, 1.0);
+    }
+    else
+    {
+        color = vec4(fragColor, 1.0);
+    }
 }
