@@ -41,6 +41,7 @@ namespace Hex
         float padding2;         // 4 bytes (to align to 16 bytes)
         bool wireframe;         // 4 bytes (std140 treats bool as 4-byte int)
         float padding3[3];      // 12 bytes (to align struct size to 16 bytes)
+        bool operator==(const RenderData & render_data) const = default;
     };
 
     class Renderer
@@ -98,6 +99,7 @@ namespace Hex
 
         std::unique_ptr<Camera> m_camera{nullptr};
         RenderData m_render_data{};
+        RenderData m_old_render_data{};
 
         std::vector<std::shared_ptr<Primitive>> m_primitives;
         LineBatch* m_cached_line_batch = nullptr;

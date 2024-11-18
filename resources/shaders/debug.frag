@@ -21,14 +21,14 @@ void main()
 {
     // Lighting parameters
     vec3 lightColor = vec3(1.0, 1.0, 1.0);       // Light color
-    float ambientStrength = 0.1;                // Ambient light strength
+    float ambientStrength = 1.f;                // Ambient light strength
     float specularStrength = 0.5;               // Specular light strength
     float shininess = 32.0;                     // Shininess factor
 
     // Attenuation parameters
     float constant = 1.0;                       // Constant attenuation
-    float linear = 0.09;                        // Linear attenuation
-    float quadratic = 0.032;                    // Quadratic attenuation
+    float linear = 0.05;                        // Linear attenuation
+    float quadratic = 0.01;                    // Quadratic attenuation
 
     // Calculate the distance between the fragment and the light
     float distance = length(light_pos - fragPosition);

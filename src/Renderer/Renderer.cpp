@@ -68,11 +68,7 @@ namespace Hex
 	{
 		// Start the ImGui frame
 		StartImGuiFrame();
-
-    	// Clear the screen at the start of the frame
-    	int display_w, display_h;
-    	glfwGetFramebufferSize(m_window.get(), &display_w, &display_h);
-    	glViewport(0, 0, display_w, display_h);
+		//SetAspectRatio(static_cast<float>(m_specification.width) / m_specification.height);
 
     	// Clear color and depth buffers
     	glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Set the background color
@@ -119,14 +115,22 @@ namespace Hex
 
 	void Renderer::CreateTestScene()
 	{
-		m_light_pos = glm::vec3(1.f, 1.f, 1.f);
+		GetOrCreateCubeBatch()->AddCube(
+						glm::vec3(0.f, -502.f, 0.f), // Position
+						1000.f,														// Size
+						glm::vec3(1.f, 1.f, 1.f)                               //	 Color
+		);
+
+
+		m_light_pos = glm::vec3(0.f, 9.f, 0.f);
 
 		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
 
-		constexpr int rows = 40;
-		constexpr int columns = 40;
+		constexpr int rows = 5;
+		constexpr int columns = 5;
 
-		for (int i = 0; i < rows * columns; i++) {
+		for (int i = 0; i < rows * columns; i++)
+		{
 			constexpr float spacing = 4.f;
 
 			const int x = i % columns;      // Calculate x based on the remainder
@@ -144,13 +148,15 @@ namespace Hex
 			GetOrCreateSphereBatch()->AddSphere(
 				glm::vec3(2 + x * spacing, 0.f, -2 + -z * spacing),
 				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
-				random_colour
+				random_colour,
+				18,
+				9
 			);
 
 			GetOrCreateCubeBatch()->AddCube(
-				glm::vec3(-2 -1.f * x * spacing, 0.f,-2 -1.f * z * spacing), // Position
-				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),														// Size
-				random_colour                                     //	 Color
+				glm::vec3(-2 -1.f * x * spacing, 0.f,-2 -1.f * z * spacing),
+				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
+				random_colour
 			);
 		}
 	}
@@ -230,11 +236,11 @@ namespace Hex
 	{
 		glfwSetWindowUserPointer(m_window.get(), this);
 		
-		//glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
-		//	[[maybe_unused]] const void* user_param) {
-		//	std::cerr << "OpenGL Debug Message: " << message << '\n';
-		//	}, nullptr
-		//);
+		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
+			[[maybe_unused]] const void* user_param) {
+			std::cerr << "OpenGL Debug Message: " << message << '\n';
+			}, nullptr
+		);
 
 		glfwSetCursorPosCallback(m_window.get(), [](GLFWwindow* window, const double x_delta, const double y_delta)
 		{
@@ -264,9 +270,15 @@ namespace Hex
 			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
 		});
 
+
+
 		glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)
 		{
 			glViewport(0, 0, width, height);
+
+
+			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+			self->m_camera->SetAspectRatio(static_cast<float>(width)/static_cast<float>(height));
 		});
 	}
 
@@ -352,6 +364,10 @@ namespace Hex
 
 	void Renderer::UpdateRenderData()
 	{
+		//if(m_render_data == m_old_render_data) return;
+
+		m_old_render_data = m_render_data;
+
 		// Update view and projection matrices from the camera
 		m_render_data.view = m_camera->GetViewMatrix();          // View matrix from the camera
 		m_render_data.projection = m_camera->GetProjectionMatrix(); // Projection matrix from the camera
@@ -485,8 +501,21 @@ namespace Hex
 
 	void Renderer::DrawOrigin(LineBatch& line_batch)
 	{
-		line_batch.AddLine({0, -50, 0}, {0, 50, 0}, {0.f, 1.f, 0.f});
-		line_batch.AddLine({-50, 0, 0}, {50, 0, 0}, {1.f, 0.f, 0.f});
-		line_batch.AddLine({0, 0, -50}, {0, 0, 50}, {0.f, 0.f, 1.f});
+		constexpr int spacing = 10;
+		constexpr int dist = 10;
+		constexpr float line_width = 0.2f;
+
+		line_batch.AddLine({0, -dist * spacing, 0}, {0, dist * spacing, 0}, {0.f, 1.f, 0.f});
+		line_batch.AddLine({-dist * spacing, 0, 0}, {dist * spacing, 0, 0}, {1.f, 0.f, 0.f});
+		line_batch.AddLine({0, 0, -dist * spacing}, {0, 0, dist * spacing}, {0.f, 0.f, 1.f});
+
+		for(int i = -dist - 1; i < dist + 1; i++)
+		{
+			if(i == 0) continue;
+
+			line_batch.AddLine({i * spacing, 0, -line_width}, {i * spacing, 0, line_width}, {1.f, 0.f, 0.f});
+			line_batch.AddLine({-line_width, 0, i * spacing}, {line_width, 0, i * spacing}, {0.f, 0.f, 1.f});
+			line_batch.AddLine({0, i * spacing, -line_width}, {0, i * spacing, line_width}, {0.f, 1.f, 0.f});
+		}
 	}
 }

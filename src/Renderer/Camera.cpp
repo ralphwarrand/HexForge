@@ -128,7 +128,7 @@ namespace Hex
 
 	void Camera::UpdateProjectionMatrix()
 	{
-		m_projection_matrix = glm::perspective(glm::radians(m_zoom), m_aspect_ratio, 0.1f, 1000.0f);
+		m_projection_matrix = glm::perspective(glm::radians(m_zoom), m_aspect_ratio, 0.1f, 10000.0f);
 	}
 
 	void Camera::UpdateCameraVectors()

@@ -86,8 +86,12 @@ namespace Hex
 		glBindVertexArray(m_vao);
 
 		// Update the UBO with the latest RenderData
-		glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
+		// Check if UBO needs updating
+		if (m_ubo != 0 && m_render_data_needs_update) {
+			glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
+			glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
+			m_render_data_needs_update = false;
+		}
 		//glBindBuffer(GL_UNIFORM_BUFFER, 0); // Unbind UBO after updating (optional)
 
 		// If needed, bind the UBO to the binding point (done during initialization usually)
@@ -125,19 +129,9 @@ namespace Hex
 		return m_material;
 	}
 
-	void Primitive::SetRenderData(const RenderData& render_data)
-	{
+	void Primitive::SetRenderData(const RenderData& render_data) {
 		m_render_data = render_data;
-
-		if (!m_buffers_initialized) {
-			InitBuffers();
-			m_buffers_initialized = true;
-		}
-
-		glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
-		//glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderData), nullptr, GL_DYNAMIC_DRAW); // Orphan old data
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		m_render_data_needs_update = true; // Flag to update UBO in Draw
 	}
 
 	const RenderData Primitive::GetRenderData() const

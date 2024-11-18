@@ -66,5 +66,6 @@ namespace Hex
 		bool m_buffers_initialized{false};
 		bool m_cull_back_face{false};
 		bool m_shaded{true};
+		bool m_render_data_needs_update{true};
 	};
 }
