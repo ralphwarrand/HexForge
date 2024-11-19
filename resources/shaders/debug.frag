@@ -22,7 +22,7 @@ void main()
     if(!wireframe)
     {
     // Lighting parameters
-    vec3 lightColor = vec3(0.8, 1.0, 0.8);       // Light color
+    vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);       // Light color
     float ambientStrength = 1.f;                // Ambient light strength
     float specularStrength = 0.5;               // Specular light strength
     float shininess = 32.0;                     // Shininess factor
