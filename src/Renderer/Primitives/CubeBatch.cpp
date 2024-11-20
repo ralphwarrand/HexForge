@@ -43,37 +43,46 @@ namespace Hex
             4, 5, 1, 1, 0, 4, // Bottom face
         };
 
-        // Define face normals
+        // Define face normals (one per face)
         std::vector<glm::vec3> faceNormals = {
-            {  0.0f,  0.0f,  1.0f }, // Front
-            {  0.0f,  0.0f, -1.0f }, // Back
-            { -1.0f,  0.0f,  0.0f }, // Left
-            {  1.0f,  0.0f,  0.0f }, // Right
-            {  0.0f,  1.0f,  0.0f }, // Top
-            {  0.0f, -1.0f,  0.0f }, // Bottom
+            {  0.0f,  0.0f,  1.0f }, // Front face
+            {  0.0f,  0.0f, -1.0f }, // Back face
+            { -1.0f,  0.0f,  0.0f }, // Left face
+            {  1.0f,  0.0f,  0.0f }, // Right face
+            {  0.0f,  1.0f,  0.0f }, // Top face
+            {  0.0f, -1.0f,  0.0f }, // Bottom face
         };
-
-
-
 
         // Track current vertex offset
         unsigned int vertexOffset = static_cast<unsigned int>(m_vertices.size());
 
-        // Add vertex data
-        for (const auto& vertex : cubeVertices) {
-            glm::vec3 worldPosition = vertex + position;
-            m_vertices.push_back({ worldPosition,
-                                  color,
-                                  glm::normalize(vertex), //TODO: Swap for faceNormals
-                                  glm::vec3(1.0f, 0.0f, 0.0f)
-            });
+        // Add vertex data per face
+        for (size_t face = 0; face < faceNormals.size(); ++face) {
+            const glm::vec3& normal = faceNormals[face];
 
+            // Each face has 4 vertices
+            for (size_t i = 0; i < 6; ++i) {
+                unsigned int index = cubeIndices[face * 6 + i];
+                glm::vec3 localPosition = cubeVertices[index];
+                glm::vec3 worldPosition = localPosition + position;
+
+                m_vertices.push_back({
+                    worldPosition,
+                    color,
+                    normal,                  // Use the face normal here
+                    glm::vec3(1.0f, 0.0f, 0.0f) // Placeholder tangent
+                });
+            }
         }
 
-
         // Add index data with offset
-        for (const auto& index : cubeIndices) {
-            m_indices.push_back(index + vertexOffset);
+        for (size_t i = 0; i < cubeIndices.size(); i += 6) {
+            m_indices.push_back(vertexOffset + i + 0);
+            m_indices.push_back(vertexOffset + i + 1);
+            m_indices.push_back(vertexOffset + i + 2);
+            m_indices.push_back(vertexOffset + i + 3);
+            m_indices.push_back(vertexOffset + i + 4);
+            m_indices.push_back(vertexOffset + i + 5);
         }
     }
 

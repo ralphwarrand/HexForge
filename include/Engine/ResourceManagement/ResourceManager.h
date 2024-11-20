@@ -38,7 +38,8 @@ namespace Hex
         std::unordered_map<size_t, std::shared_ptr<ResourceBase>> resources_;
 
         // Helper function to generate hash key for a given path
-        size_t generateHash(const std::string& path) const {
+        static size_t generateHash(const std::string& path)
+        {
             return std::hash<std::string>{}(path);
         }
     };

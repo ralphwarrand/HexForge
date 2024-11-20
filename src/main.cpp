@@ -3,8 +3,8 @@
 int main() {
     Hex::AppSpecification spec;
     spec.name = "Sandbox";
-    spec.width = 1920;
-    spec.height = 1080;
+    spec.width = 800;
+    spec.height = 600;
     spec.fullscreen = false;
     spec.vsync = false;
 

@@ -1,7 +1,14 @@
+#pragma once
+
+//Hex
 #include "Engine/ResourceManagement/ResourceBase.h"
-#include <iostream>
+
+//Lib
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
+
+//STL
+#include <iostream>
 
 namespace Hex
 {
@@ -13,7 +20,7 @@ namespace Hex
 		int channels{0};
 		unsigned char* data{nullptr};
 
-		~TextureResource()
+		~TextureResource() override
 		{
 			if (data)
 			{

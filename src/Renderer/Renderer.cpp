@@ -42,26 +42,16 @@ namespace Hex
 	{
 		InitOpenGLContext(app_spec);
 		LogRendererInfo();
-		
-		glEnable(GL_DEBUG_OUTPUT);
-		
+
+		//Create camera
 		m_camera.reset(new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f));
+		m_camera->SetAspectRatio(static_cast<float>(app_spec.width)/static_cast<float>(app_spec.height));
 
 		CreateTestScene();
 
 		SetupCallBacks();
 		
 		glfwSetInputMode(m_window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
-		if(app_spec.vsync)
-		{
-			glfwSwapInterval(1); // Enable VSync
-		}
-		else
-		{
-			glfwSwapInterval(0); // Disable VSync
-		}
-
 	}
 
 	void Renderer::Tick(const float& delta_time)
@@ -224,10 +214,21 @@ namespace Hex
 
 		glViewport(0, 0, app_spec.width, app_spec.height);
 
+		glEnable(GL_DEBUG_OUTPUT);
+
 		int flags;
 		glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
 		if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
 			Log(LogLevel::Info, "OpenGL debug context enabled");
+		}
+
+		if(app_spec.vsync)
+		{
+			glfwSwapInterval(1); // Enable VSync
+		}
+		else
+		{
+			glfwSwapInterval(0); // Disable VSync
 		}
 
 	}
@@ -236,11 +237,11 @@ namespace Hex
 	{
 		glfwSetWindowUserPointer(m_window.get(), this);
 		
-		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
-			[[maybe_unused]] const void* user_param) {
-			std::cerr << "OpenGL Debug Message: " << message << '\n';
-			}, nullptr
-		);
+		//glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
+		//	[[maybe_unused]] const void* user_param) {
+		//	std::cerr << "OpenGL Debug Message: " << message << '\n';
+		//	}, nullptr
+		//);
 
 		glfwSetCursorPosCallback(m_window.get(), [](GLFWwindow* window, const double x_delta, const double y_delta)
 		{
@@ -269,7 +270,6 @@ namespace Hex
 			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
 		});
-
 
 
 		glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)

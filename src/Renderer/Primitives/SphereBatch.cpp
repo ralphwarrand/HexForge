@@ -22,59 +22,65 @@ namespace Hex
 	}
 
 	void SphereBatch::AddSphere(const glm::vec3& position, const float& radius,
-							const glm::vec3& color, const unsigned int sector_count, const unsigned int stack_count)
+	                            const glm::vec3& color, const unsigned int sector_count, const unsigned int stack_count)
 	{
-		const auto pi = glm::pi<float>();
+	    const auto pi = glm::pi<float>();
 
-		const float sector_step = 2.f * pi / static_cast<float>(sector_count);
-		const float stack_step = pi / static_cast<float>(stack_count);
+	    const float sector_step = 2.f * pi / static_cast<float>(sector_count);
+	    const float stack_step = pi / static_cast<float>(stack_count);
 
-		// Track current vertex offset
-		const unsigned int vertex_offset = static_cast<unsigned int>(m_vertices.size());
+	    // Temporary storage for vertex indices
+	    std::vector<std::vector<unsigned int>> vertex_indices(stack_count + 1, std::vector<unsigned int>(sector_count + 1));
 
-		for (unsigned int i = 0; i <= stack_count; ++i) {
-			const float stack_angle = pi / 2 - static_cast<float>(i) * stack_step;
-			const float xy = radius * cosf(stack_angle);
-			const float z = radius * sinf(stack_angle);
+	    for (unsigned int i = 0; i <= stack_count; ++i) {
+	        const float stack_angle = pi / 2 - static_cast<float>(i) * stack_step; // From pi/2 to -pi/2
+	        const float xy = radius * cosf(stack_angle); // Radius of circle at stack
+	        const float z = radius * sinf(stack_angle); // Z position
 
-			for (unsigned int j = 0; j <= sector_count; ++j) {
-				const float sector_angle = static_cast<float>(j) * sector_step;
+	        for (unsigned int j = 0; j <= sector_count; ++j) {
+	            const float sector_angle = static_cast<float>(j) * sector_step; // From 0 to 2pi
 
-				const float x = xy * cosf(sector_angle);
-				const float y = xy * sinf(sector_angle);
+	            // Compute local position on the sphere
+	            const float x = xy * cosf(sector_angle);
+	            const float y = xy * sinf(sector_angle);
 
-				glm::vec3 local_position = {x, y, z};
-				glm::vec3 world_position = local_position + position;
-				const glm::vec3 normal = glm::normalize(local_position);
-				glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), normal));
-				if (glm::length(tangent) < 0.0001f) {
-					tangent = glm::normalize(glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), normal));
-				}
+	            glm::vec3 local_position = {x, y, z};
+	            glm::vec3 world_position = local_position + position;
+	            const glm::vec3 normal = glm::normalize(local_position);
+	            glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), normal));
+	            if (glm::length(tangent) < 0.0001f) {
+	                tangent = glm::normalize(glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), normal));
+	            }
 
-				// Add vertex to global list
-				m_vertices.push_back({world_position, color, normal, tangent});
-			}
-		}
+	            // Check if this vertex already exists, else add it
+	            if (vertex_indices[i][j] == 0) {
+	                vertex_indices[i][j] = static_cast<unsigned int>(m_vertices.size());
+	                m_vertices.push_back({world_position, color, normal, tangent});
+	            }
+	        }
+	    }
 
-		// Generate indices
-		for (unsigned int i = 0; i < stack_count; ++i) {
-			unsigned int k1 = i * (sector_count + 1) + vertex_offset;
-			unsigned int k2 = k1 + sector_count + 1;
+	    // Generate indices
+	    for (unsigned int i = 0; i < stack_count; ++i) {
+	        for (unsigned int j = 0; j < sector_count; ++j) {
+	            unsigned int k1 = vertex_indices[i][j];
+	            unsigned int k2 = vertex_indices[i + 1][j];
+	            unsigned int k3 = vertex_indices[i][j + 1];
+	            unsigned int k4 = vertex_indices[i + 1][j + 1];
 
-			for (unsigned int j = 0; j < sector_count; ++j, ++k1, ++k2) {
-				if (i != 0) {
-					m_indices.push_back(k1);
-					m_indices.push_back(k2);
-					m_indices.push_back(k1 + 1);
-				}
+	            if (i != 0) { // Top triangle
+	                m_indices.push_back(k1);
+	                m_indices.push_back(k2);
+	                m_indices.push_back(k3);
+	            }
 
-				if (i != stack_count - 1) {
-					m_indices.push_back(k1 + 1);
-					m_indices.push_back(k2);
-					m_indices.push_back(k2 + 1);
-				}
-			}
-		}
+	            if (i != stack_count - 1) { // Bottom triangle
+	                m_indices.push_back(k3);
+	                m_indices.push_back(k2);
+	                m_indices.push_back(k4);
+	            }
+	        }
+	    }
 	}
 
 	void SphereBatch::InitBuffers()

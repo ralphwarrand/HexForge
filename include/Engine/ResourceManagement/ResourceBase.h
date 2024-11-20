@@ -23,6 +23,5 @@ namespace Hex
 	public:
 		std::vector<Vertex> m_vertices;
 		std::vector<unsigned int> m_indices;
-
 	};
 }
