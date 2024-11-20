@@ -52,55 +52,26 @@ namespace Hex
 		SetupCallBacks();
 		
 		glfwSetInputMode(m_window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+		InitShadowMap();
 	}
 
 	void Renderer::Tick(const float& delta_time)
 	{
-		// Start the ImGui frame
-		StartImGuiFrame();
-		//SetAspectRatio(static_cast<float>(m_specification.width) / m_specification.height);
-
-    	// Clear color and depth buffers
-    	glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Set the background color
-    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    	// Enable depth testing
-    	glEnable(GL_DEPTH_TEST);
-
 		m_camera->ProcessKeyboardInput(m_window.get(), delta_time);
 		m_camera->Tick(delta_time);
 
-    	// Update and render 3D content
-    	UpdateRenderData();
-    	for (const auto primitive : m_primitives)
-    	{
-    	    primitive->SetRenderData(m_render_data);
+		StartImGuiFrame();
+		glClearColor(0.f, 0.f, 0.f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 
-    	    if (primitive->ShouldCullBackFaces())
-    	    {
-    	        glEnable(GL_CULL_FACE);
-    	        glCullFace(GL_BACK);
-    	    }
-
-    	    const auto shader = primitive->GetShaderProgram();
-    	    if (!shader)
-    	    {
-    	        Log(LogLevel::Error, "Failed to get shader program");
-    	        continue;
-    	    }
-    	    shader->Bind();
-    	    shader->SetUniformMat4("model", primitive->GetModelMatrix());
-    	    shader->SetUniform1i("shade", primitive->ShouldShade());
-    		primitive->Draw();
-    	    Hex::Shader::Unbind();
-
-    	    glDisable(GL_CULL_FACE);
-    	}
+		UpdateRenderData();
+		RenderShadowMap(); // First pass: Generate shadow map
+		RenderScene();     // Second pass: Render scene with shadows
 
 		EndImGuiFrame(delta_time);
-
-    	// Swap buffers at the end
-    	glfwSwapBuffers(m_window.get());
+		glfwSwapBuffers(m_window.get());
 	}
 
 	void Renderer::CreateTestScene()
@@ -112,7 +83,7 @@ namespace Hex
 		);
 
 
-		m_light_pos = glm::vec3(0.f, 9.f, 0.f);
+		m_light_pos = glm::vec3(5.f, 12.f, 5.f);
 
 		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
 
@@ -138,9 +109,7 @@ namespace Hex
 			GetOrCreateSphereBatch()->AddSphere(
 				glm::vec3(2 + x * spacing, 0.f, -2 + -z * spacing),
 				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
-				random_colour,
-				18,
-				9
+				random_colour
 			);
 
 			GetOrCreateCubeBatch()->AddCube(
@@ -271,7 +240,6 @@ namespace Hex
 			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
 		});
 
-
 		glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)
 		{
 			glViewport(0, 0, width, height);
@@ -289,6 +257,113 @@ namespace Hex
 		Log(LogLevel::Info, std::format("Running GLSL {}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION))));
 		Log(LogLevel::Info, std::format("Using GPU: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER))));
 		Log(LogLevel::Info, "Renderer Initialised\n");
+	}
+
+	void Renderer::InitShadowMap()
+	{
+		// Generate and configure the shadow map framebuffer
+		glGenFramebuffers(1, &m_shadow_map_fbo);
+
+		// Create the depth texture
+		glGenTextures(1, &m_shadow_map_texture);
+		glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, shadow_width, shadow_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+
+		glGenFramebuffers(1, &m_shadow_map_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_shadow_map_texture, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			Log(LogLevel::Error, "Shadow map framebuffer is incomplete!");
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void Renderer::RenderShadowMap()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map_fbo);
+
+		glViewport(0, 0, shadow_width, shadow_height);
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		glEnable(GL_DEPTH_TEST);
+
+		// Set up the light's view and projection matrices
+		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
+		m_light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
+		m_light_projection = glm::ortho(-30.0f, 30.0f, -30.0f, 30.0f, 1.0f, 200.0f);
+
+		auto shadow_shader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/shadow.vert",
+			RESOURCES_PATH "shaders/shadow.frag"
+		);
+		shadow_shader->Bind();
+		shadow_shader->SetUniformMat4("light_view", m_light_view);
+		shadow_shader->SetUniformMat4("light_projection", m_light_projection);
+
+		for (const auto primitive : m_primitives)
+		{
+			if(primitive.get() == m_cached_line_batch) continue;
+
+			if (primitive->ShouldCullBackFaces()) {
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_BACK);
+			}
+
+			primitive->Draw();
+
+			if (primitive->ShouldCullBackFaces()) {
+				glDisable(GL_CULL_FACE);
+			}
+		}
+
+		Hex::Shader::Unbind();
+		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
+
+		int width, height;
+		glfwGetFramebufferSize(m_window.get(), &width, &height);
+		glViewport(0, 0, width, height);
+	}
+
+	void Renderer::RenderScene()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
+
+		for (const auto primitive : m_primitives) {
+			primitive->SetRenderData(m_render_data);
+
+			if (primitive->ShouldCullBackFaces())
+			{
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_BACK);
+			}
+
+			const auto shader = primitive->GetShaderProgram();
+			if (!shader)
+			{
+				Log(LogLevel::Error, "Failed to get shader program");
+				continue;
+			}
+			shader->Bind();
+			shader->SetUniform1i("shadow_map", 0);
+			shader->SetUniformMat4("light_space_matrix", m_light_projection * m_light_view);
+			primitive->Draw();
+			Hex::Shader::Unbind();
+
+			glDisable(GL_CULL_FACE);
+		}
+
+		Hex::Shader::Unbind();
 	}
 
 	LineBatch* Renderer::GetOrCreateLineBatch()
@@ -495,6 +570,16 @@ namespace Hex
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Enable default fill mode
 			}
 		}
+
+		ImGui::End();
+
+		// Add a new window for the shadow map
+		ImGui::Begin("Shadow Map Debug");
+
+		// Display the shadow map texture
+		ImVec2 image_size(300, 300); // Set the size of the displayed texture
+		ImGui::Text("Shadow Map");
+		ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, ImVec2(0, 1), ImVec2(1, 0));
 
 		ImGui::End();
 	}

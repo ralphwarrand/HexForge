@@ -19,8 +19,10 @@ layout(std140, binding = 0) uniform RenderData {
 out vec3 fragPosition;
 out vec3 fragNormal;
 out vec3 fragColor;
+out vec4 fragPosLightSpace;     // Position in light-space
 
 uniform mat4 model;
+uniform mat4 light_space_matrix;   // Light space matrix for shadow mapping
 
 void main()
 {

@@ -20,10 +20,10 @@ out vec3 fragColor;
 out vec3 fragPosition;
 out vec3 fragNormal;
 
-uniform mat4 model;
-
 void main()
 {
+
+    mat4 model = mat4(1.f);
     fragColor = color;
     fragPosition = vec3(view * model * vec4(position, 1.0));
 

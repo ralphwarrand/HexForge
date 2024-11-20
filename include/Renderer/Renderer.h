@@ -82,16 +82,19 @@ namespace Hex
         void InitOpenGLContext(const AppSpecification& app_spec);
         void SetupCallBacks();
         static void LogRendererInfo();
+
+        void InitShadowMap();
+        void RenderShadowMap();
+        void RenderScene();
         void UpdateRenderData();
 
         void SetLightPos(const glm::vec3& pos);
+        static void DrawOrigin(LineBatch& line_batch);
 
+        //ImGui
         static void StartImGuiFrame();
         void EndImGuiFrame(const float& delta_time);
-
         void ShowDebugUI(const float& delta_time);
-
-        static void DrawOrigin(LineBatch& line_batch);
 
         // Define a unique_ptr with a custom deleter type alias
         using GLFWwindowPtr = std::unique_ptr<GLFWwindow, void(*)(GLFWwindow*)>;
@@ -107,6 +110,12 @@ namespace Hex
         CubeBatch* m_cached_cube_batch = nullptr;
 
         glm::vec3 m_light_pos{};
+
+        GLuint m_shadow_map_fbo;         // Framebuffer for shadow mapping
+        GLuint m_shadow_map_texture;     // Texture to store the depth information
+        glm::mat4 m_light_view;          // View matrix for the light
+        glm::mat4 m_light_projection;    // Projection matrix for the light
+        int shadow_width = 2048, shadow_height = 2048;
 
         bool m_wireframe_mode{false};
 
