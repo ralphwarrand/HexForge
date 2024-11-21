@@ -117,6 +117,9 @@ namespace Hex
         glm::mat4 m_light_projection;    // Projection matrix for the light
         int shadow_width = 2048, shadow_height = 2048;
 
+        float m_shadow_map_zoom{1.f};
+        glm::vec2 m_shadow_map_pan{0.f, 0.f};
+
         bool m_wireframe_mode{false};
 
         // Debug callback function

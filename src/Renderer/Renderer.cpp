@@ -298,7 +298,7 @@ namespace Hex
 		// Set up the light's view and projection matrices
 		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
 		m_light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_light_projection = glm::ortho(-30.0f, 30.0f, -30.0f, 30.0f, 1.0f, 200.0f);
+		m_light_projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 5.0f, 100.0f);
 
 		auto shadow_shader = ShaderManager::GetOrCreateShader(
 			RESOURCES_PATH "shaders/shadow.vert",
@@ -506,7 +506,6 @@ namespace Hex
 
 	void Renderer::ShowDebugUI(const float& delta_time)
 	{
-
 		ImGui::Begin("Main Window");
 
 		if (ImGui::CollapsingHeader("Rendering Metrics"))
@@ -573,19 +572,39 @@ namespace Hex
 
 		ImGui::End();
 
-		// Add a new window for the shadow map
+		// Shadow Map Debug Window
+		static float shadow_zoom = 1.0f; // Zoom factor
+		static glm::vec2 shadow_pan(0.0f, 0.0f); // Pan offsets
+
 		ImGui::Begin("Shadow Map Debug");
 
-		// Display the shadow map texture
-		ImVec2 image_size(300, 300); // Set the size of the displayed texture
 		ImGui::Text("Shadow Map");
-		ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, ImVec2(0, 1), ImVec2(1, 0));
+
+		// Add controls for zoom and pan
+		ImGui::SliderFloat("Zoom", &shadow_zoom, 0.1f, 5.0f, "Zoom: %.2f");
+		ImGui::DragFloat2("Pan", &shadow_pan.x, 0.01f, -1.0f, 1.0f, "Pan: %.2f");
+
+		// Calculate the UV range for zoom
+		float uv_range = 0.5f / shadow_zoom; // The visible area based on zoom
+		glm::vec2 uv_center = glm::vec2(0.5f) + shadow_pan * uv_range; // Adjust the center based on pan
+
+		// Clamp the UV center to avoid going out of bounds
+		uv_center.x = glm::clamp(uv_center.x, uv_range, 1.0f - uv_range);
+		uv_center.y = glm::clamp(uv_center.y, uv_range, 1.0f - uv_range);
+
+		// Define UV min and max based on zoom and pan
+		ImVec2 uv_min(uv_center.x - uv_range, uv_center.y - uv_range);
+		ImVec2 uv_max(uv_center.x + uv_range, uv_center.y + uv_range);
+
+		// Display the shadow map with the calculated UVs
+		ImVec2 image_size(300, 300); // Fixed display size
+		ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, uv_min, uv_max);
 
 		ImGui::End();
 	}
 
 	void Renderer::DrawOrigin(LineBatch& line_batch)
-	{
+		{
 		constexpr int spacing = 10;
 		constexpr int dist = 10;
 		constexpr float line_width = 0.2f;
