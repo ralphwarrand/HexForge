@@ -76,7 +76,7 @@ namespace Hex
         }
 
         // Add index data with offset
-        for (size_t i = 0; i < cubeIndices.size(); i += 6) {
+        for (int i = 0; i < cubeIndices.size(); i += 6) {
             m_indices.push_back(vertexOffset + i + 0);
             m_indices.push_back(vertexOffset + i + 1);
             m_indices.push_back(vertexOffset + i + 2);

@@ -31,34 +31,30 @@ vec3 gammaCorrect(vec3 color) {
     return pow(color, vec3(1.0 / 2.2));
 }
 
-vec2 poisson_disk[16] = vec2[](
-    vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
-    vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
-    vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
-    vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
-    vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
-    vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
-    vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
-    vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
-);
-
 float ShadowCalculation(vec4 frag_pos_light_space)
 {
+    // Transform the fragment position from light space to normalized device coordinates (NDC)
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
-    proj_coords = proj_coords * 0.5 + 0.5;
+    proj_coords = proj_coords * 0.5 + 0.5; // Transform from NDC range [-1, 1] to [0, 1]
 
+    // Check if the projected coordinates are outside the shadow map bounds or behind the light
     if (proj_coords.z > 1.0 || proj_coords.x < 0.0 || proj_coords.x > 1.0 || proj_coords.y < 0.0 || proj_coords.y > 1.0)
     return 1.0;
 
+    // Use PCF for smoother shadows
     float shadow = 0.0;
     vec2 texel_size = vec2(1.0 / textureSize(shadow_map, 0));
 
-    for (int i = 0; i < 16; ++i) {
-        vec2 offset = poisson_disk[i] * texel_size;
-        float closest_depth = texture(shadow_map, proj_coords.xy + offset).r;
-        shadow += (proj_coords.z - 0.005) > closest_depth ? 0.0 : 1.0;
+    // Sample 3x3 grid around the current point for smoother shadows
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2 offset = vec2(x, y) * texel_size;
+            float closest_depth = texture(shadow_map, proj_coords.xy + offset).r;
+            shadow += (proj_coords.z - 0.005) > closest_depth ? 0.0 : 1.0;
+        }
     }
-    shadow /= 16.0;
+
+    shadow /= 9.0; // Normalize by the number of samples
     return shadow;
 }
 
@@ -67,7 +63,7 @@ void main()
     if (!wireframe)
     {
         vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
-        float ambientStrength = 0.1f;
+        float ambientStrength = 0.05f;
         float specularStrength = 0.8;
         float shininess = 32.0;
 
@@ -75,13 +71,13 @@ void main()
         float linear = 0.05;
         float quadratic = 0.01;
 
-        float distance = length(light_pos - fragPosition);
-        float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
+        //float distance = length(light_pos - fragPosition);
+        //float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
 
         vec3 ambient = ambientStrength * lightColor;
 
         vec3 norm = normalize(fragNormal);
-        vec3 lightDir = normalize(light_pos - fragPosition);
+        vec3 lightDir = normalize(light_pos - vec3(0.f));
         float diff = max(dot(norm, lightDir), 0.0);
         vec3 diffuse = diff * lightColor;
 
@@ -90,12 +86,12 @@ void main()
         float spec = pow(max(dot(norm, halfwayDir), 0.0), shininess);
         vec3 specular = specularStrength * spec * lightColor;
 
-        vec4 frag_pos_light_space = light_space_matrix * vec4(fragPosition, 1.0);
+        vec4 frag_pos_light_space = vec4(light_space_matrix * vec4(fragPosition, 1.0));
         float shadow = ShadowCalculation(frag_pos_light_space);
 
-        ambient *= attenuation;
-        diffuse *= attenuation * shadow;
-        specular *= attenuation * shadow;
+        //ambient *= attenuation;
+        diffuse *= shadow;
+        specular *= shadow;
 
         vec3 result = (specular + ambient + diffuse) * fragColor;
 
