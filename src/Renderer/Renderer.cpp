@@ -85,11 +85,12 @@ namespace Hex
 		// Bind framebuffer for rendering
 		glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer);
 		glViewport(0, 0, m_render_width, m_render_height); // Match viewport size to framebuffer
-		glClearColor(0.53f, 0.81f, 0.92f, 1.0f); // Sky blue color
+		glClearColor(0.f, 0.f, 0.f, 1.0f); // Sky blue color
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
-		RenderFullScreenQuad();
+		if(!m_wireframe_mode)
+			RenderFullScreenQuad();
 		RenderScene();     // Second pass: Render scene with shadows
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind framebuffer
