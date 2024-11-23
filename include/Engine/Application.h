@@ -45,6 +45,8 @@ namespace Hex
 
 		static void InitImgui(GLFWwindow* window);
 
+		static void SetImGuiStyle();
+
 		// Application guts
 		std::unique_ptr<Renderer> m_renderer{nullptr};
 		std::unique_ptr<ResourceManager> m_resource_manager{nullptr};

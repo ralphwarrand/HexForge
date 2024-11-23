@@ -85,8 +85,10 @@ namespace Hex
         void InitOpenGLContext(const AppSpecification& app_spec);
         void SetupCallBacks();
         static void LogRendererInfo();
+        void CheckFrameBufferStatus();
 
         void InitShadowMap();
+        void InitFrameBuffer(const int& width, const int& height);
         void RenderShadowMap();
         void RenderFullScreenQuad() const;
         void RenderScene() const;
@@ -116,23 +118,28 @@ namespace Hex
 
         glm::vec3 m_light_pos{};
 
-        GLuint m_shadow_map_fbo;         // Framebuffer for shadow mapping
-        GLuint m_shadow_map_texture;     // Texture to store the depth information
-        glm::mat4 m_light_view;          // View matrix for the light
-        glm::mat4 m_light_projection;    // Projection matrix for the light
-        int shadow_width = 2048, shadow_height = 2048;
+        GLuint m_shadow_map_fbo{0};         // Framebuffer for shadow mapping
+        GLuint m_shadow_map_texture{0};     // Texture to store the depth information
+        glm::mat4 m_light_view{glm::mat4(1.f)};          // View matrix for the light
+        glm::mat4 m_light_projection{glm::mat4(1.f)};    // Projection matrix for the light
+        int shadow_width{2048}, shadow_height{2048};
 
         float m_shadow_map_zoom{1.f};
         glm::vec2 m_shadow_map_pan{0.f, 0.f};
+
+        GLuint m_frame_buffer{0};
+        GLuint m_frame_buffer_texture{0};
+        GLuint m_depth_render_buffer{0};
+        unsigned int m_render_width{100}, m_render_height{100};
 
         bool m_wireframe_mode{false};
 
         // Debug output toggle
         bool m_enable_debug_output{true};
 
-        bool m_show_metrics{false};
-        bool m_show_scene_info{false};
-        bool m_show_lighting_tool{false};
+        bool m_show_metrics{true};
+        bool m_show_scene_info{true};
+        bool m_show_lighting_tool{true};
     };
 
     template <typename T, typename... Args>
