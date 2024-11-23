@@ -5,7 +5,7 @@
 This project uses CMake and GitHub Actions for CI to ensure cross-platform compatibility on Ubuntu, macOS, and Windows. The goal of this project is to have a framework from which crossplatform development can go smoothly. The framework should be capable of supporting the development of 3D graphical applications and uses OpenGL to achieve this.
 
 ## Current Screenshot
-![Hexahedron_LZkEV1FTsk](https://github.com/user-attachments/assets/6e625d84-3311-49c0-8eb2-633b67d28251)
+![Hexahedron_fFtleoIUQl](https://github.com/user-attachments/assets/d7ccc5d7-bf42-44b4-9b43-28c701f2f490)
 
 ## Overview
 ### Features
