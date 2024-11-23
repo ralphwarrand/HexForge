@@ -1,14 +1,17 @@
 //Hex
 #include "Renderer/Renderer.h"
+#include "Engine/Logger.h"
+#include "Engine/Application.h"
+#include "Renderer/ShaderManager.h"
+#include "Renderer/Shader.h"
+#include "Renderer/Camera.h"
+
+//Hex Primitives
 #include "Renderer/Primitives/PrimitiveBase.h"
 #include "Renderer/Primitives/LineBatch.h"
 #include "Renderer/Primitives/SphereBatch.h"
 #include "Renderer/Primitives/CubeBatch.h"
-#include "Engine/Logger.h"
-#include "Engine/Application.h"
-#include "Renderer/Shader.h"
-#include "Renderer/Camera.h"
-#include "Renderer/ShaderManager.h"
+#include "Renderer/Primitives/ScreenQuad.h"
 
 //Lib
 #define GLM_ENABLE_EXPERIMENTAL
@@ -47,6 +50,8 @@ namespace Hex
 		m_camera.reset(new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f));
 		m_camera->SetAspectRatio(static_cast<float>(app_spec.width)/static_cast<float>(app_spec.height));
 
+		m_screen_quad.reset(new ScreenQuad());
+
 		CreateTestScene();
 
 		SetupCallBacks();
@@ -62,12 +67,13 @@ namespace Hex
 		m_camera->Tick(delta_time);
 
 		StartImGuiFrame();
-		glClearColor(0.f, 0.f, 0.f, 1.0f);
+		glClearColor(0.53f, 0.81f, 0.92f, 1.0f); // Clear color set to sky blue (RGB: 135, 206, 235)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
 		UpdateRenderData();
 		RenderShadowMap(); // First pass: Generate shadow map
+		RenderFullScreenQuad();
 		RenderScene();     // Second pass: Render scene with shadows
 
 		EndImGuiFrame(delta_time);
@@ -77,8 +83,8 @@ namespace Hex
 	void Renderer::CreateTestScene()
 	{
 		GetOrCreateCubeBatch()->AddCube(
-						glm::vec3(0.f, -502.f, 0.f), // Position
-						1000.f,														// Size
+						glm::vec3(0.f, -26.5f, 0.f), // Position
+						50.f,														// Size
 						glm::vec3(1.f, 1.f, 1.f)                               //	 Color
 		);
 
@@ -298,7 +304,7 @@ namespace Hex
 		// Set up the light's view and projection matrices
 		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
 		m_light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_light_projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 5.0f, 100.0f);
+		m_light_projection = glm::ortho(-40.0f, 40.0f, -40.0f, 40.0f, 5.0f, 100.0f);
 
 		auto shadow_shader = ShaderManager::GetOrCreateShader(
 			RESOURCES_PATH "shaders/shadow.vert",
@@ -332,7 +338,27 @@ namespace Hex
 		glViewport(0, 0, width, height);
 	}
 
-	void Renderer::RenderScene()
+	void Renderer::RenderFullScreenQuad() const
+	{
+		glDisable(GL_DEPTH_TEST);
+
+		// Use the gradient shader
+		auto gradientShader = ShaderManager::GetOrCreateShader(
+			RESOURCES_PATH "shaders/gradient.vert",
+			RESOURCES_PATH "shaders/gradient.frag"
+		);
+		gradientShader->Bind();
+
+		glBindVertexArray(m_screen_quad.get()->vao);
+		glDrawArrays(GL_TRIANGLES, 0, 6); // Draw the quad as two triangles
+		glBindVertexArray(0);
+
+		Shader::Unbind();
+
+		glEnable(GL_DEPTH_TEST);
+	}
+
+	void Renderer::RenderScene() const
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -355,8 +381,14 @@ namespace Hex
 				continue;
 			}
 			shader->Bind();
-			shader->SetUniform1i("shadow_map", 0);
-			shader->SetUniformMat4("light_space_matrix", m_light_projection * m_light_view);
+
+			if(primitive.get() != m_cached_line_batch)
+			{
+				shader->SetUniform1i("shadow_map", 0);
+				shader->SetUniform1i("should_shade", primitive.get()->ShouldShade());
+				shader->SetUniformMat4("light_space_matrix", m_light_projection * m_light_view);
+			}
+
 			primitive->Draw();
 			Hex::Shader::Unbind();
 
@@ -506,101 +538,157 @@ namespace Hex
 
 	void Renderer::ShowDebugUI(const float& delta_time)
 	{
-		ImGui::Begin("Main Window");
+	    // Start the main menu bar
+	    if (ImGui::BeginMainMenuBar())
+	    {
+	        // File Menu
+	        if (ImGui::BeginMenu("File"))
+	        {
+	            if (ImGui::MenuItem("Exit")) {
+	                glfwSetWindowShouldClose(m_window.get(), true); // Close the window
+	            }
+	            ImGui::EndMenu();
+	        }
 
-		if (ImGui::CollapsingHeader("Rendering Metrics"))
-		{
-			ImGui::Text("FPS: %.1f", 1.0f / delta_time);
-			ImGui::Text("Frame-time: %.6f ms", delta_time * 1000.0f, delta_time);
-		}
+	        // View Menu
+	        if (ImGui::BeginMenu("View"))
+	        {
+	            // Use member variables for visibility toggles
+	            ImGui::MenuItem("Rendering Metrics", nullptr, &m_show_metrics);
+	            ImGui::MenuItem("Scene Information", nullptr, &m_show_scene_info);
+	            ImGui::MenuItem("Lighting Tool", nullptr, &m_show_lighting_tool);
+	            ImGui::EndMenu();
+	        }
 
-		//if (ImGui::CollapsingHeader("Rendering Settings"))
-		//{
-		//	ImGui::SliderFloat("Ambient Light", nullptr, 0.0f, 1.0f);
-		//	ImGui::SliderFloat("Diffuse Intensity", nullptr, 0.0f, 1.0f);
-		//}
+	        ImGui::EndMainMenuBar();
+	    }
 
+	    // Rendering Metrics Window
+	    if (m_show_metrics)
+	    {
+	        if (ImGui::Begin("Rendering Metrics", &m_show_metrics)) // Allow closing
+	        {
+	            ImGui::Text("FPS: %.1f", 1.0f / delta_time);
+	            ImGui::Text("Frame-time: %.6f ms", delta_time * 1000.0f);
+	            ImGui::End();
+	        }
+	    }
 
-		if (ImGui::CollapsingHeader("Scene Information"))
-		{
-			ImGui::Text("Active Primitives: %d", static_cast<int>(m_primitives.size()));
-			ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
-						m_camera->GetPosition().x,
-						m_camera->GetPosition().y,
-						m_camera->GetPosition().z);
-			ImGui::Separator();
-			ImGui::Text("Camera View: %s", glm::to_string(m_camera->GetViewMatrix()).c_str());
-			ImGui::Separator();
-			ImGui::Text("Camera Proj: %s", glm::to_string(m_camera->GetProjectionMatrix()).c_str());
-		}
+	    // Scene Information Window
+	    if (m_show_scene_info)
+	    {
+	        if (ImGui::Begin("Scene Information", &m_show_scene_info)) // Allow closing
+	        {
+	            ImGui::Text("Camera Position:");
+	            ImGui::Text("%.2f, %.2f, %.2f",
+	                        m_camera->GetPosition().x,
+	                        m_camera->GetPosition().y,
+	                        m_camera->GetPosition().z);
+	            ImGui::Separator();
 
-		if (ImGui::CollapsingHeader("Lighting Information"))
-		{
-			constexpr int active_lights_count = 1; //TODO: update to reflect actual light count
-			constexpr int selected_light_index = 1; //TODO: update to reflect actual selected light index
+	            // Display Camera View Matrix
+	            ImGui::Text("Camera View:");
+	            glm::mat4 viewMatrix = m_camera->GetViewMatrix();
+	            for (int i = 0; i < 4; ++i) {
+	                ImGui::Text("%.2f, %.2f, %.2f, %.2f",
+	                            viewMatrix[i][0], viewMatrix[i][1], viewMatrix[i][2], viewMatrix[i][3]);
+	            }
+	            ImGui::Separator();
 
-			// Display static lighting information
-			ImGui::Text("Active Lights: %d", active_lights_count); // Assume active_lights_count is defined
-			ImGui::Text("Selected Light: %d", selected_light_index); // Assume selected_light_index is defined
-			ImGui::Text("Light Position:");
+	            // Display Camera Projection Matrix
+	            ImGui::Text("Camera Proj:");
+	            glm::mat4 projMatrix = m_camera->GetProjectionMatrix();
+	            for (int i = 0; i < 4; ++i) {
+	                ImGui::Text("%.2f, %.2f, %.2f, %.2f",
+	                            projMatrix[i][0], projMatrix[i][1], projMatrix[i][2], projMatrix[i][3]);
+	            }
 
-			// Add interactive controls for editing the light position
-			if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
-			{
-				// Update light position
-				SetLightPos(m_light_pos);
-			}
+	            // Display Primitives Information
+	            if (ImGui::CollapsingHeader("Primitives Information"))
+	            {
+	                int primitiveIndex = 0;
+	                for (const auto& primitive : m_primitives)
+	                {
+	                    ImGui::Text("Primitive #%d:", primitiveIndex++);
+	                    if (dynamic_cast<LineBatch*>(primitive.get())) {
+	                        ImGui::Text("  Type: LineBatch");
+	                    } else if (dynamic_cast<SphereBatch*>(primitive.get())) {
+	                        ImGui::Text("  Type: SphereBatch");
+	                    } else if (dynamic_cast<CubeBatch*>(primitive.get())) {
+	                        ImGui::Text("  Type: CubeBatch");
+	                    } else {
+	                        ImGui::Text("  Type: Unknown");
+	                    }
 
-			ImGui::Separator();
-		}
+	                    // Display and toggle shading state for this primitive
+	                    bool isShaded = primitive->ShouldShade();
+	                    std::string buttonLabel = std::string("Toggle Shading##") + std::to_string(primitiveIndex); // Unique label
 
+	                    if (ImGui::Button(buttonLabel.c_str())) {
+	                        primitive->SetShouldShade(!isShaded); // Toggle shading state
+	                    }
+	                    ImGui::Text("  Shading: %s", isShaded ? "Enabled" : "Disabled");
 
+	                    ImGui::Separator();
+	                }
+	            }
 
-		if (ImGui::Button("Toggle Wireframe"))
-		{
-			m_wireframe_mode = !m_wireframe_mode; // Toggle the state
+	            ImGui::End();
+	        }
+	    }
 
-			if (m_wireframe_mode)
-			{
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Enable wireframe
-			}
-			else
-			{
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Enable default fill mode
-			}
-		}
+	    // Lighting Tool Window
+	    if (m_show_lighting_tool)
+	    {
+	        if (ImGui::Begin("Lighting Tool", &m_show_lighting_tool)) // Allow closing
+	        {
+	            constexpr int active_lights_count = 1; // TODO: update to reflect actual light count
+	            constexpr int selected_light_index = 1; // TODO: update to reflect actual selected light index
 
-		ImGui::End();
+	            // Display static lighting information
+	            ImGui::Text("Active Lights: %d", active_lights_count);
+	            ImGui::Text("Selected Light: %d", selected_light_index);
+	            ImGui::Text("Light Position:");
 
-		// Shadow Map Debug Window
-		static float shadow_zoom = 1.0f; // Zoom factor
-		static glm::vec2 shadow_pan(0.0f, 0.0f); // Pan offsets
+	            // Add interactive controls for editing the light position
+	            if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
+	            {
+	                SetLightPos(m_light_pos);
+	            }
 
-		ImGui::Begin("Shadow Map Debug");
+	            ImGui::Separator();
 
-		ImGui::Text("Shadow Map");
+	            // Shadow Mapping
+	            if (ImGui::CollapsingHeader("Shadow Mapping"))
+	            {
+	                static float shadow_zoom = 1.0f; // Zoom factor
+	                static glm::vec2 shadow_pan(0.0f, 0.0f); // Pan offsets
 
-		// Add controls for zoom and pan
-		ImGui::SliderFloat("Zoom", &shadow_zoom, 0.1f, 5.0f, "Zoom: %.2f");
-		ImGui::DragFloat2("Pan", &shadow_pan.x, 0.01f, -1.0f, 1.0f, "Pan: %.2f");
+	                ImGui::Text("Shadow Map");
 
-		// Calculate the UV range for zoom
-		float uv_range = 0.5f / shadow_zoom; // The visible area based on zoom
-		glm::vec2 uv_center = glm::vec2(0.5f) + shadow_pan * uv_range; // Adjust the center based on pan
+	                // Add controls for zoom and pan
+	                ImGui::SliderFloat("Zoom", &shadow_zoom, 0.1f, 5.0f, "Zoom: %.2f");
+	                ImGui::DragFloat2("Pan", &shadow_pan.x, 0.01f, -1.0f, 1.0f, "Pan: %.2f");
 
-		// Clamp the UV center to avoid going out of bounds
-		uv_center.x = glm::clamp(uv_center.x, uv_range, 1.0f - uv_range);
-		uv_center.y = glm::clamp(uv_center.y, uv_range, 1.0f - uv_range);
+	                // Calculate the UV range for zoom
+	                float uv_range = 0.5f / shadow_zoom;
+	                glm::vec2 uv_center = glm::vec2(0.5f) + shadow_pan * uv_range;
 
-		// Define UV min and max based on zoom and pan
-		ImVec2 uv_min(uv_center.x - uv_range, uv_center.y - uv_range);
-		ImVec2 uv_max(uv_center.x + uv_range, uv_center.y + uv_range);
+	                // Clamp the UV center to avoid going out of bounds
+	                uv_center.x = glm::clamp(uv_center.x, uv_range, 1.0f - uv_range);
+	                uv_center.y = glm::clamp(uv_center.y, uv_range, 1.0f - uv_range);
 
-		// Display the shadow map with the calculated UVs
-		ImVec2 image_size(300, 300); // Fixed display size
-		ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, uv_min, uv_max);
+	                ImVec2 uv_min(uv_center.x - uv_range, uv_center.y - uv_range);
+	                ImVec2 uv_max(uv_center.x + uv_range, uv_center.y + uv_range);
 
-		ImGui::End();
+	                // Display the shadow map with the calculated UVs
+	                ImVec2 image_size(300, 300); // Fixed display size
+	                ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, uv_min, uv_max);
+	            }
+
+	            ImGui::End();
+	        }
+	    }
 	}
 
 	void Renderer::DrawOrigin(LineBatch& line_batch)

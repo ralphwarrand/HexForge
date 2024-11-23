@@ -50,11 +50,15 @@ namespace Hex
 		[[nodiscard]] const Material* GetMaterial() const;
 
 		void SetRenderData(const RenderData& render_data);
-		[[nodiscard]] const RenderData GetRenderData() const;
+		[[nodiscard]] RenderData GetRenderData() const;
 
 		// Render defs
-		[[nodiscard]] bool ShouldCullBackFaces() const;
+		void SetShouldShade(const bool& should_shade);
 		[[nodiscard]] bool ShouldShade() const;
+
+
+		[[nodiscard]] bool ShouldCullBackFaces() const;
+
 	
 	protected:
 		GLuint m_vao{}, m_vbo{}, m_ubo{};

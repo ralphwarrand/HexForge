@@ -65,9 +65,17 @@ namespace Hex
 
     // Private utility functions
     std::string Shader::LoadShaderSource(const std::string& filepath) {
-        const std::ifstream file(filepath);
+        std::ifstream file(filepath);
+
+        // Check if the file is open
+        if (!file.is_open()) {
+           Log(LogLevel::Error, std::format("Unable to open shader file: {}", filepath));
+        }
+
+        // Read file contents
         std::stringstream buffer;
         buffer << file.rdbuf();
+
         return buffer.str();
     }
 

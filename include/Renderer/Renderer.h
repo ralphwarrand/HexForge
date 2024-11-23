@@ -18,10 +18,13 @@ namespace Hex
     class Camera;
     class Shader;
     class Mesh;
+
+    // Primitives
     class Primitive;
     class LineBatch;
     class SphereBatch;
     class CubeBatch;
+    struct ScreenQuad;
 
     struct Material
     {
@@ -85,7 +88,8 @@ namespace Hex
 
         void InitShadowMap();
         void RenderShadowMap();
-        void RenderScene();
+        void RenderFullScreenQuad() const;
+        void RenderScene() const;
         void UpdateRenderData();
 
         void SetLightPos(const glm::vec3& pos);
@@ -105,9 +109,10 @@ namespace Hex
         RenderData m_old_render_data{};
 
         std::vector<std::shared_ptr<Primitive>> m_primitives;
-        LineBatch* m_cached_line_batch = nullptr;
-        SphereBatch* m_cached_sphere_batch = nullptr;
-        CubeBatch* m_cached_cube_batch = nullptr;
+        LineBatch* m_cached_line_batch{nullptr};
+        SphereBatch* m_cached_sphere_batch{nullptr};
+        CubeBatch* m_cached_cube_batch{nullptr};
+        std::unique_ptr<ScreenQuad> m_screen_quad{nullptr};
 
         glm::vec3 m_light_pos{};
 
@@ -122,13 +127,12 @@ namespace Hex
 
         bool m_wireframe_mode{false};
 
-        // Debug callback function
-        static void APIENTRY OpenGLDebugMessageCallback(GLenum source, GLenum type, GLuint id,
-                                                        GLenum severity, GLsizei length,
-                                                        const GLchar* message, const void* userParam);
-
         // Debug output toggle
-        bool m_enable_debug_output = true;
+        bool m_enable_debug_output{true};
+
+        bool m_show_metrics{false};
+        bool m_show_scene_info{false};
+        bool m_show_lighting_tool{false};
     };
 
     template <typename T, typename... Args>

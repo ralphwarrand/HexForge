@@ -15,6 +15,7 @@ layout(std140, binding = 0) uniform RenderData {
 
 uniform sampler2D shadow_map;
 uniform mat4 light_space_matrix;
+uniform bool should_shade;
 
 in vec3 fragPosition;
 in vec3 fragNormal;
@@ -60,7 +61,7 @@ float ShadowCalculation(vec4 frag_pos_light_space)
 
 void main()
 {
-    if (!wireframe)
+    if (!wireframe && should_shade)
     {
         vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
         float ambientStrength = 0.05f;

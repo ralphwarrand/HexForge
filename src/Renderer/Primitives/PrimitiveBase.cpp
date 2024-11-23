@@ -134,9 +134,14 @@ namespace Hex
 		m_render_data_needs_update = true; // Flag to update UBO in Draw
 	}
 
-	const RenderData Primitive::GetRenderData() const
+	RenderData Primitive::GetRenderData() const
 	{
 		return m_render_data;
+	}
+
+	void Primitive::SetShouldShade(const bool &should_shade)
+	{
+		m_shaded = should_shade;
 	}
 
 	bool Primitive::ShouldCullBackFaces() const
