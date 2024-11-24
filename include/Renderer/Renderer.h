@@ -1,5 +1,8 @@
 #pragma once
 
+//Hex
+#include "RenderStructs.h"
+
 //Lib
 #include <glm/glm.hpp>
 #include <glad/glad.h>
@@ -12,41 +15,6 @@ struct GLFWwindow;
 
 namespace Hex
 {
-
-    // Forward declarations
-    struct AppSpecification;
-    class Camera;
-    class Shader;
-    class Mesh;
-
-    // Primitives
-    class Primitive;
-    class LineBatch;
-    class SphereBatch;
-    class CubeBatch;
-    struct ScreenQuad;
-
-    struct Material
-    {
-        glm::vec3 ambient_color;
-        glm::vec3 diffuse_color;
-        glm::vec3 specular_color;
-        float shininess;
-    };
-
-    struct alignas(16) RenderData
-    {
-        glm::mat4 view;         // 64 bytes (16-byte alignment)
-        glm::mat4 projection;   // 64 bytes (16-byte alignment)
-        glm::vec3 view_pos;     // 12 bytes
-        float padding1;         // 4 bytes (to align to 16 bytes)
-        glm::vec3 light_pos;    // 12 bytes
-        float padding2;         // 4 bytes (to align to 16 bytes)
-        bool wireframe;         // 4 bytes (std140 treats bool as 4-byte int)
-        float padding3[3];      // 12 bytes (to align struct size to 16 bytes)
-        bool operator==(const RenderData & render_data) const = default;
-    };
-
     class Renderer
     {
     public:
@@ -89,6 +57,8 @@ namespace Hex
 
         void InitShadowMap();
         void InitFrameBuffer(const int& width, const int& height);
+        void BindFrameBuffer() const;
+        void BindWindowBuffer() const;
         void RenderShadowMap();
         void RenderFullScreenQuad() const;
         void RenderScene() const;
@@ -117,20 +87,12 @@ namespace Hex
         std::unique_ptr<ScreenQuad> m_screen_quad{nullptr};
 
         glm::vec3 m_light_pos{};
-
-        GLuint m_shadow_map_fbo{0};         // Framebuffer for shadow mapping
-        GLuint m_shadow_map_texture{0};     // Texture to store the depth information
-        glm::mat4 m_light_view{glm::mat4(1.f)};          // View matrix for the light
-        glm::mat4 m_light_projection{glm::mat4(1.f)};    // Projection matrix for the light
-        int shadow_width{2048}, shadow_height{2048};
+        ShadowMap m_shadow_map{};
 
         float m_shadow_map_zoom{1.f};
         glm::vec2 m_shadow_map_pan{0.f, 0.f};
 
-        GLuint m_frame_buffer{0};
-        GLuint m_frame_buffer_texture{0};
-        GLuint m_depth_render_buffer{0};
-        unsigned int m_render_width{100}, m_render_height{100};
+        FrameBuffer m_frame_buffer{};
 
         bool m_wireframe_mode{false};
 

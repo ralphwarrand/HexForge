@@ -70,39 +70,22 @@ namespace Hex
 		m_camera->ProcessKeyboardInput(m_window.get(), delta_time);
 		m_camera->Tick(delta_time);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind framebuffer
-		int width{0}, height{0};
-		glfwGetFramebufferSize(m_window.get(), &width, &height);
-		glViewport(0, 0, width, height); // Match viewport size to framebuffer
-		glClearColor(0.08f, 0.10f, 0.12f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		BindWindowBuffer();
 		StartImGuiFrame();
 
 		UpdateRenderData();
-		RenderShadowMap(); // First pass: Generate shadow map
+		RenderShadowMap();								// First pass: Generate shadow map
 
-		// Bind framebuffer for rendering
-		glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer);
-		glViewport(0, 0, m_render_width, m_render_height); // Match viewport size to framebuffer
-		glClearColor(0.f, 0.f, 0.f, 1.0f); // Sky blue color
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
+		BindFrameBuffer();								// Switch to primary frame buffer
+		if(!m_wireframe_mode) RenderFullScreenQuad();	// Second pass: Render sky background
+		RenderScene();									// Third pass: Render scene with shadows
 
-		if(!m_wireframe_mode)
-			RenderFullScreenQuad();
-		RenderScene();     // Second pass: Render scene with shadows
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind frame buffer
 
 		// Render ImGui interface
 		ShowDebugUI(delta_time);
-
-
-
-
-
 		EndImGuiFrame(delta_time);
+
 		glfwSwapBuffers(m_window.get());
 	}
 
@@ -274,12 +257,12 @@ namespace Hex
 
 		//glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)
 		//{
-//
+		//
 		//	const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-//
-//
+		//
+		//
 		//	glViewport(0, 0, self->m_render_width, self->m_render_height);
-//
+		//
 		//	self->m_camera->SetAspectRatio(static_cast<float>(self->m_render_width)/static_cast<float>(self->m_render_height));
 		//});
 	}
@@ -295,50 +278,50 @@ namespace Hex
 
 	void Renderer::CheckFrameBufferStatus()
 	{
-		 GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-   		switch (status)
-   		{
-   		case GL_FRAMEBUFFER_COMPLETE:
-   		    Log(LogLevel::Info, "Framebuffer is complete.");
-   		    break;
-   		case GL_FRAMEBUFFER_UNDEFINED:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_UNDEFINED: The specified framebuffer is the default read or draw framebuffer, but the default framebuffer does not exist.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: One or more framebuffer attachment points are incomplete.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: The framebuffer does not have at least one image attached.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: The value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for one or more color attachment points.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: The value of GL_READ_BUFFER is not GL_NONE, and the value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for the color attachment point.");
-   		    break;
-   		case GL_FRAMEBUFFER_UNSUPPORTED:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_UNSUPPORTED: The combination of internal formats of the attached images violates an implementation-dependent set of restrictions.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: The number of samples for all attachments is not the same.");
-   		    break;
-   		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-   		    Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: A framebuffer attachment is layered, and a populated attachment is not layered.");
-   		    break;
-   		default:
-   		    Log(LogLevel::Error, "Unknown framebuffer error.");
-   		}
+		GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		switch (status)
+		{
+			case GL_FRAMEBUFFER_COMPLETE:
+				Log(LogLevel::Info, "Framebuffer is complete.");
+			break;
+			case GL_FRAMEBUFFER_UNDEFINED:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_UNDEFINED: The specified framebuffer is the default read or draw framebuffer, but the default framebuffer does not exist.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: One or more framebuffer attachment points are incomplete.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: The framebuffer does not have at least one image attached.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: The value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for one or more color attachment points.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: The value of GL_READ_BUFFER is not GL_NONE, and the value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for the color attachment point.");
+			break;
+			case GL_FRAMEBUFFER_UNSUPPORTED:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_UNSUPPORTED: The combination of internal formats of the attached images violates an implementation-dependent set of restrictions.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: The number of samples for all attachments is not the same.");
+			break;
+			case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+				Log(LogLevel::Error, "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: A framebuffer attachment is layered, and a populated attachment is not layered.");
+			break;
+			default:
+				Log(LogLevel::Error, "Unknown framebuffer error.");
+		}
 	}
 
 	void Renderer::InitShadowMap()
 	{
 		// Generate and configure the shadow map framebuffer
-		glGenFramebuffers(1, &m_shadow_map_fbo);
+		glGenFramebuffers(1, &m_shadow_map.fbo);
 
 		// Create the depth texture
-		glGenTextures(1, &m_shadow_map_texture);
-		glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, shadow_width, shadow_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		glGenTextures(1, &m_shadow_map.texture);
+		glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, m_shadow_map.shadow_width, m_shadow_map.shadow_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -346,9 +329,8 @@ namespace Hex
 		constexpr float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
 
-		glGenFramebuffers(1, &m_shadow_map_fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map_fbo);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_shadow_map_texture, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map.fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_shadow_map.texture, 0);
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -365,27 +347,27 @@ namespace Hex
 		}
 
 		// Cleanup existing framebuffer
-		if (m_frame_buffer) glDeleteFramebuffers(1, &m_frame_buffer);
-		if (m_frame_buffer_texture) glDeleteTextures(1, &m_frame_buffer_texture);
-		if (m_depth_render_buffer) glDeleteRenderbuffers(1, &m_depth_render_buffer);
+		if (m_frame_buffer.frame_buffer) glDeleteFramebuffers(1, &m_frame_buffer.frame_buffer);
+		if (m_frame_buffer.texture) glDeleteTextures(1, &m_frame_buffer.texture);
+		if (m_frame_buffer.depth_render_buffer) glDeleteRenderbuffers(1, &m_frame_buffer.depth_render_buffer);
 
 		// Create framebuffer
-		glGenFramebuffers(1, &m_frame_buffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer);
+		glGenFramebuffers(1, &m_frame_buffer.frame_buffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer.frame_buffer);
 
 		// Create and attach color texture
-		glGenTextures(1, &m_frame_buffer_texture);
-		glBindTexture(GL_TEXTURE_2D, m_frame_buffer_texture);
+		glGenTextures(1, &m_frame_buffer.texture);
+		glBindTexture(GL_TEXTURE_2D, m_frame_buffer.texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_frame_buffer_texture, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_frame_buffer.texture, 0);
 
 		// Create and attach depth-stencil renderbuffer
-		glGenRenderbuffers(1, &m_depth_render_buffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, m_depth_render_buffer);
+		glGenRenderbuffers(1, &m_frame_buffer.depth_render_buffer);
+		glBindRenderbuffer(GL_RENDERBUFFER, m_frame_buffer.depth_render_buffer);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_depth_render_buffer);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_frame_buffer.depth_render_buffer);
 
 		// Check framebuffer completeness
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -394,32 +376,52 @@ namespace Hex
 			Log(LogLevel::Info, "Framebuffer initialized successfully.");
 		}
 
-		m_camera->SetAspectRatio(static_cast<float>(m_render_width)/static_cast<float>(m_render_height));
+		m_camera->SetAspectRatio(static_cast<float>(m_frame_buffer.render_width)/static_cast<float>(m_frame_buffer.render_height));
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind framebuffer
 	}
 
+	void Renderer::BindFrameBuffer() const
+	{
+		// Bind framebuffer for rendering
+		glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer.frame_buffer);
+		glViewport(0, 0, m_frame_buffer.render_width, m_frame_buffer.render_height); // Match viewport size to framebuffer
+		glClearColor(0.f, 0.f, 0.f, 1.0f); // Sky blue color
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+	}
+
+	void Renderer::BindWindowBuffer() const
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind framebuffer
+		int width{0}, height{0};
+		glfwGetFramebufferSize(m_window.get(), &width, &height);
+		glViewport(0, 0, width, height); // Match viewport size to framebuffer
+		glClearColor(0.08f, 0.10f, 0.12f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
+
 	void Renderer::RenderShadowMap()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map.fbo);
 
-		glViewport(0, 0, shadow_width, shadow_height);
+		glViewport(0, 0, m_shadow_map.shadow_width, m_shadow_map.shadow_height);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		glEnable(GL_DEPTH_TEST);
 
 		// Set up the light's view and projection matrices
 		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
-		m_light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_light_projection = glm::ortho(-40.0f, 40.0f, -40.0f, 40.0f, 5.0f, 100.0f);
+		m_shadow_map.light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
+		m_shadow_map.light_projection = glm::ortho(-40.0f, 40.0f, -40.0f, 40.0f, 5.0f, 100.0f);
 
 		auto shadow_shader = ShaderManager::GetOrCreateShader(
 			RESOURCES_PATH "shaders/shadow.vert",
 			RESOURCES_PATH "shaders/shadow.frag"
 		);
 		shadow_shader->Bind();
-		shadow_shader->SetUniformMat4("light_view", m_light_view);
-		shadow_shader->SetUniformMat4("light_projection", m_light_projection);
+		shadow_shader->SetUniformMat4("light_view", m_shadow_map.light_view);
+		shadow_shader->SetUniformMat4("light_projection", m_shadow_map.light_projection);
 
 		for (const auto primitive : m_primitives)
 		{
@@ -468,7 +470,7 @@ namespace Hex
 	void Renderer::RenderScene() const
 	{
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
+		glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
 
 		for (const auto primitive : m_primitives) {
 			primitive->SetRenderData(m_render_data);
@@ -491,7 +493,7 @@ namespace Hex
 			{
 				shader->SetUniform1i("shadow_map", 0);
 				shader->SetUniform1i("should_shade", primitive.get()->ShouldShade());
-				shader->SetUniformMat4("light_space_matrix", m_light_projection * m_light_view);
+				shader->SetUniformMat4("light_space_matrix", m_shadow_map.light_projection * m_shadow_map.light_view);
 			}
 
 			primitive->Draw();
@@ -641,165 +643,165 @@ namespace Hex
 
 	void Renderer::ShowDebugUI(const float& delta_time)
 	{
-	    // Start the main menu bar
-	    if (ImGui::BeginMainMenuBar())
-	    {
-	        if (ImGui::BeginMenu("File"))
-	        {
-	            if (ImGui::MenuItem("Exit")) {
-	                glfwSetWindowShouldClose(m_window.get(), true);
-	            }
-	            ImGui::EndMenu();
-	        }
+		// Start the main menu bar
+		if (ImGui::BeginMainMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Exit")) {
+					glfwSetWindowShouldClose(m_window.get(), true);
+				}
+				ImGui::EndMenu();
+			}
 
-	        if (ImGui::BeginMenu("View"))
-	        {
-	            ImGui::MenuItem("Rendering Metrics", nullptr, &m_show_metrics);
-	            ImGui::MenuItem("Scene Information", nullptr, &m_show_scene_info);
-	            ImGui::MenuItem("Lighting Tool", nullptr, &m_show_lighting_tool);
-	        	ImGui::MenuItem("Wireframe", nullptr, &m_wireframe_mode);
+			if (ImGui::BeginMenu("View"))
+			{
+				ImGui::MenuItem("Rendering Metrics", nullptr, &m_show_metrics);
+				ImGui::MenuItem("Scene Information", nullptr, &m_show_scene_info);
+				ImGui::MenuItem("Lighting Tool", nullptr, &m_show_lighting_tool);
+				ImGui::MenuItem("Wireframe", nullptr, &m_wireframe_mode);
 
-	        	if (m_wireframe_mode)
-	        	{
-	        		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Enable wireframe
-	        	}
-	        	else
-	        	{
-	        		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Disable wireframe
-	        	}
+				if (m_wireframe_mode)
+				{
+					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Enable wireframe
+				}
+				else
+				{
+					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Disable wireframe
+				}
 
-	            ImGui::EndMenu();
-	        }
-	        ImGui::EndMainMenuBar();
-	    }
-
-
-
-	    // Other windows (metrics, scene info, etc.)
-	    if (m_show_metrics)
-	    {
-	        if (ImGui::Begin("Rendering Metrics", &m_show_metrics))
-	        {
-	            ImGui::Text("FPS: %.1f", 1.0f / delta_time);
-	            ImGui::Text("Frame-time: %.6f ms", delta_time * 1000.0f);
-	        }
-	    	ImGui::End();
-	    }
-
-	    if (m_show_scene_info)
-	    {
-	        if (ImGui::Begin("Scene Information", &m_show_scene_info))
-	        {
-	            ImGui::Text("Camera Position:");
-	            ImGui::Text("%.2f, %.2f, %.2f",
-	                        m_camera->GetPosition().x,
-	                        m_camera->GetPosition().y,
-	                        m_camera->GetPosition().z);
-	            ImGui::Separator();
+				ImGui::EndMenu();
+			}
+			ImGui::EndMainMenuBar();
+		}
 
 
-	            // Display Camera View Matrix
-	            ImGui::Text("Camera View:");
-	            glm::mat4 viewMatrix = m_camera->GetViewMatrix();
-	            for (int i = 0; i < 4; ++i) {
-	                ImGui::Text("%.2f, %.2f, %.2f, %.2f",
-	                            viewMatrix[i][0], viewMatrix[i][1], viewMatrix[i][2], viewMatrix[i][3]);
-	            }
-	            ImGui::Separator();
 
-	            // Display Camera Projection Matrix
-	            ImGui::Text("Camera Proj:");
-	            glm::mat4 projMatrix = m_camera->GetProjectionMatrix();
-	            for (int i = 0; i < 4; ++i) {
-	                ImGui::Text("%.2f, %.2f, %.2f, %.2f",
-	                            projMatrix[i][0], projMatrix[i][1], projMatrix[i][2], projMatrix[i][3]);
-	            }
+		// Other windows (metrics, scene info, etc.)
+		if (m_show_metrics)
+		{
+			if (ImGui::Begin("Rendering Metrics", &m_show_metrics))
+			{
+				ImGui::Text("FPS: %.1f", 1.0f / delta_time);
+				ImGui::Text("Frame-time: %.6f ms", delta_time * 1000.0f);
+			}
+			ImGui::End();
+		}
 
-	            // Display Primitives Information
-	            if (ImGui::CollapsingHeader("Primitives Information"))
-	            {
-	                int primitiveIndex = 0;
-	                for (const auto& primitive : m_primitives)
-	                {
-	                    ImGui::Text("Primitive #%d:", primitiveIndex++);
-	                    if (dynamic_cast<LineBatch*>(primitive.get())) {
-	                        ImGui::Text("  Type: LineBatch");
-	                    } else if (dynamic_cast<SphereBatch*>(primitive.get())) {
-	                        ImGui::Text("  Type: SphereBatch");
-	                    } else if (dynamic_cast<CubeBatch*>(primitive.get())) {
-	                        ImGui::Text("  Type: CubeBatch");
-	                    } else {
-	                        ImGui::Text("  Type: Unknown");
-	                    }
-
-	                    // Display and toggle shading state for this primitive
-	                    bool isShaded = primitive->ShouldShade();
-	                    std::string buttonLabel = std::string("Toggle Shading##") + std::to_string(primitiveIndex); // Unique label
-
-	                    if (ImGui::Button(buttonLabel.c_str())) {
-	                        primitive->SetShouldShade(!isShaded); // Toggle shading state
-	                    }
-	                    ImGui::Text("  Shading: %s", isShaded ? "Enabled" : "Disabled");
-
-	                    ImGui::Separator();
-	                }
-	            }
-	        }
-	    	ImGui::End();
-	    }
-			    // Lighting Tool Window
-	    if (m_show_lighting_tool)
-	    {
-		    if (ImGui::Begin("Lighting Tool", &m_show_lighting_tool)) // Allow closing
-		    {
-		    	constexpr int active_lights_count = 1; // TODO: update to reflect actual light count
-		    	constexpr int selected_light_index = 1; // TODO: update to reflect actual selected light index
-
-		    	// Display static lighting information
-		    	ImGui::Text("Active Lights: %d", active_lights_count);
-		    	ImGui::Text("Selected Light: %d", selected_light_index);
-		    	ImGui::Text("Light Position:");
-
-		    	// Add interactive controls for editing the light position
-		    	if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
-		    	{
-		    		SetLightPos(m_light_pos);
-		    	}
-
-		    	ImGui::Separator();
-
-		    	// Shadow Mapping
-		    	if (ImGui::CollapsingHeader("Shadow Mapping"))
-		    	{
-		    		static float shadow_zoom = 1.0f; // Zoom factor
-		    		static glm::vec2 shadow_pan(0.0f, 0.0f); // Pan offsets
-
-		    		ImGui::Text("Shadow Map");
-
-		    		// Add controls for zoom and pan
-		    		ImGui::SliderFloat("Zoom", &shadow_zoom, 0.1f, 5.0f, "Zoom: %.2f");
-		    		ImGui::DragFloat2("Pan", &shadow_pan.x, 0.01f, -1.0f, 1.0f, "Pan: %.2f");
-
-		    		// Calculate the UV range for zoom
-		    		float uv_range = 0.5f / shadow_zoom;
-		    		glm::vec2 uv_center = glm::vec2(0.5f) + shadow_pan * uv_range;
-
-		    		// Clamp the UV center to avoid going out of bounds
-		    		uv_center.x = glm::clamp(uv_center.x, uv_range, 1.0f - uv_range);
-		    		uv_center.y = glm::clamp(uv_center.y, uv_range, 1.0f - uv_range);
-
-		    		ImVec2 uv_min(uv_center.x - uv_range, uv_center.y - uv_range);
-		    		ImVec2 uv_max(uv_center.x + uv_range, uv_center.y + uv_range);
-
-		    		// Display the shadow map with the calculated UVs
-		    		ImVec2 image_size(300, 300); // Fixed display size
-		    		ImGui::Image((void*)(intptr_t)m_shadow_map_texture, image_size, uv_min, uv_max);
-		    	}
+		if (m_show_scene_info)
+		{
+			if (ImGui::Begin("Scene Information", &m_show_scene_info))
+			{
+				ImGui::Text("Camera Position:");
+				ImGui::Text("%.2f, %.2f, %.2f",
+							m_camera->GetPosition().x,
+							m_camera->GetPosition().y,
+							m_camera->GetPosition().z);
+				ImGui::Separator();
 
 
-		    }
-	    	ImGui::End();
-	    }
+				// Display Camera View Matrix
+				ImGui::Text("Camera View:");
+				glm::mat4 viewMatrix = m_camera->GetViewMatrix();
+				for (int i = 0; i < 4; ++i) {
+					ImGui::Text("%.2f, %.2f, %.2f, %.2f",
+								viewMatrix[i][0], viewMatrix[i][1], viewMatrix[i][2], viewMatrix[i][3]);
+				}
+				ImGui::Separator();
+
+				// Display Camera Projection Matrix
+				ImGui::Text("Camera Proj:");
+				glm::mat4 projMatrix = m_camera->GetProjectionMatrix();
+				for (int i = 0; i < 4; ++i) {
+					ImGui::Text("%.2f, %.2f, %.2f, %.2f",
+								projMatrix[i][0], projMatrix[i][1], projMatrix[i][2], projMatrix[i][3]);
+				}
+
+				// Display Primitives Information
+				if (ImGui::CollapsingHeader("Primitives Information"))
+				{
+					int primitiveIndex = 0;
+					for (const auto& primitive : m_primitives)
+					{
+						ImGui::Text("Primitive #%d:", primitiveIndex++);
+						if (dynamic_cast<LineBatch*>(primitive.get())) {
+							ImGui::Text("  Type: LineBatch");
+						} else if (dynamic_cast<SphereBatch*>(primitive.get())) {
+							ImGui::Text("  Type: SphereBatch");
+						} else if (dynamic_cast<CubeBatch*>(primitive.get())) {
+							ImGui::Text("  Type: CubeBatch");
+						} else {
+							ImGui::Text("  Type: Unknown");
+						}
+
+						// Display and toggle shading state for this primitive
+						bool isShaded = primitive->ShouldShade();
+						std::string buttonLabel = std::string("Toggle Shading##") + std::to_string(primitiveIndex); // Unique label
+
+						if (ImGui::Button(buttonLabel.c_str())) {
+							primitive->SetShouldShade(!isShaded); // Toggle shading state
+						}
+						ImGui::Text("  Shading: %s", isShaded ? "Enabled" : "Disabled");
+
+						ImGui::Separator();
+					}
+				}
+			}
+			ImGui::End();
+		}
+		// Lighting Tool Window
+		if (m_show_lighting_tool)
+		{
+			if (ImGui::Begin("Lighting Tool", &m_show_lighting_tool)) // Allow closing
+			{
+				constexpr int active_lights_count = 1; // TODO: update to reflect actual light count
+				constexpr int selected_light_index = 1; // TODO: update to reflect actual selected light index
+
+				// Display static lighting information
+				ImGui::Text("Active Lights: %d", active_lights_count);
+				ImGui::Text("Selected Light: %d", selected_light_index);
+				ImGui::Text("Light Position:");
+
+				// Add interactive controls for editing the light position
+				if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
+				{
+					SetLightPos(m_light_pos);
+				}
+
+				ImGui::Separator();
+
+				// Shadow Mapping
+				if (ImGui::CollapsingHeader("Shadow Mapping"))
+				{
+					static float shadow_zoom = 1.0f; // Zoom factor
+					static glm::vec2 shadow_pan(0.0f, 0.0f); // Pan offsets
+
+					ImGui::Text("Shadow Map");
+
+					// Add controls for zoom and pan
+					ImGui::SliderFloat("Zoom", &shadow_zoom, 0.1f, 5.0f, "Zoom: %.2f");
+					ImGui::DragFloat2("Pan", &shadow_pan.x, 0.01f, -1.0f, 1.0f, "Pan: %.2f");
+
+					// Calculate the UV range for zoom
+					float uv_range = 0.5f / shadow_zoom;
+					glm::vec2 uv_center = glm::vec2(0.5f) + shadow_pan * uv_range;
+
+					// Clamp the UV center to avoid going out of bounds
+					uv_center.x = glm::clamp(uv_center.x, uv_range, 1.0f - uv_range);
+					uv_center.y = glm::clamp(uv_center.y, uv_range, 1.0f - uv_range);
+
+					ImVec2 uv_min(uv_center.x - uv_range, uv_center.y - uv_range);
+					ImVec2 uv_max(uv_center.x + uv_range, uv_center.y + uv_range);
+
+					// Display the shadow map with the calculated UVs
+					ImVec2 image_size(300, 300); // Fixed display size
+					ImGui::Image((void*)(intptr_t)m_shadow_map.texture, image_size, uv_min, uv_max);
+				}
+
+
+			}
+			ImGui::End();
+		}
 
 		// Viewport Window
 		ImGui::Begin("Viewport");
@@ -811,22 +813,22 @@ namespace Hex
 
 		// Resize framebuffer if dimensions change
 		if (newWidth > 0 && newHeight > 0 &&
-			(newWidth != m_render_width || newHeight != m_render_height))
+			(newWidth != m_frame_buffer.render_width || newHeight != m_frame_buffer.render_height))
 		{
-			m_render_width = newWidth;
-			m_render_height = newHeight;
-			InitFrameBuffer(m_render_width, m_render_height);
+			m_frame_buffer.render_width = newWidth;
+			m_frame_buffer.render_height = newHeight;
+			InitFrameBuffer(m_frame_buffer.render_width, m_frame_buffer.render_height);
 		}
 
 		// Display the framebuffer texture in ImGui
-		ImGui::Image((void*)(intptr_t)m_frame_buffer_texture,
-					 ImVec2(static_cast<float>(m_render_width), static_cast<float>(m_render_height)),
+		ImGui::Image((void*)(intptr_t)m_frame_buffer.texture,
+					 ImVec2(static_cast<float>(m_frame_buffer.render_width), static_cast<float>(m_frame_buffer.render_height)),
 					 ImVec2(0, 1), ImVec2(1, 0));
 		ImGui::End();
 	}
 
 	void Renderer::DrawOrigin(LineBatch& line_batch)
-		{
+	{
 		constexpr int spacing = 10;
 		constexpr int dist = 10;
 		constexpr float line_width = 0.2f;
