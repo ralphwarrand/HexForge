@@ -22,7 +22,7 @@ namespace Hex
         const float halfSize = size / 2.0f;
 
         // Define the vertices for a unit cube centered at the origin
-        std::vector<glm::vec3> cubeVertices = {
+        const std::vector<glm::vec3> cubeVertices = {
             { -halfSize, -halfSize,  halfSize }, // 0
             {  halfSize, -halfSize,  halfSize }, // 1
             {  halfSize,  halfSize,  halfSize }, // 2
@@ -34,7 +34,7 @@ namespace Hex
         };
 
         // Define the indices for the cube
-        std::vector<unsigned int> cubeIndices = {
+        const std::vector<unsigned int> cubeIndices = {
             0, 1, 2, 2, 3, 0, // Front face
             4, 7, 6, 6, 5, 4, // Back face
             4, 0, 3, 3, 7, 4, // Left face
@@ -44,7 +44,7 @@ namespace Hex
         };
 
         // Define face normals (one per face)
-        std::vector<glm::vec3> faceNormals = {
+        const std::vector<glm::vec3> faceNormals = {
             {  0.0f,  0.0f,  1.0f }, // Front face
             {  0.0f,  0.0f, -1.0f }, // Back face
             { -1.0f,  0.0f,  0.0f }, // Left face
@@ -53,8 +53,8 @@ namespace Hex
             {  0.0f, -1.0f,  0.0f }, // Bottom face
         };
 
-        // Track current vertex offset
-        unsigned int vertexOffset = static_cast<unsigned int>(m_vertices.size());
+        // Traack current vertex offset
+        const unsigned int vertex_offset = static_cast<unsigned int>(m_vertices.size());
 
         // Add vertex data per face
         for (size_t face = 0; face < faceNormals.size(); ++face) {
@@ -62,9 +62,9 @@ namespace Hex
 
             // Each face has 4 vertices
             for (size_t i = 0; i < 6; ++i) {
-                unsigned int index = cubeIndices[face * 6 + i];
+                const unsigned int index = cubeIndices[face * 6 + i];
                 glm::vec3 localPosition = cubeVertices[index];
-                glm::vec3 worldPosition = localPosition + position;
+                const glm::vec3 worldPosition = localPosition + position;
 
                 m_vertices.push_back({
                     worldPosition,
@@ -77,12 +77,12 @@ namespace Hex
 
         // Add index data with offset
         for (int i = 0; i < cubeIndices.size(); i += 6) {
-            m_indices.push_back(vertexOffset + i + 0);
-            m_indices.push_back(vertexOffset + i + 1);
-            m_indices.push_back(vertexOffset + i + 2);
-            m_indices.push_back(vertexOffset + i + 3);
-            m_indices.push_back(vertexOffset + i + 4);
-            m_indices.push_back(vertexOffset + i + 5);
+            m_indices.push_back(vertex_offset + i + 0);
+            m_indices.push_back(vertex_offset + i + 1);
+            m_indices.push_back(vertex_offset + i + 2);
+            m_indices.push_back(vertex_offset + i + 3);
+            m_indices.push_back(vertex_offset + i + 4);
+            m_indices.push_back(vertex_offset + i + 5);
         }
     }
 

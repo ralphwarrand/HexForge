@@ -74,7 +74,7 @@ namespace Hex
 		StartImGuiFrame();
 
 		UpdateRenderData();
-		RenderShadowMap();								// First pass: Generate shadow map
+		if(!m_wireframe_mode) RenderShadowMap();		// First pass: Generate shadow map
 
 		BindFrameBuffer();								// Switch to primary frame buffer
 		if(!m_wireframe_mode) RenderFullScreenQuad();	// Second pass: Render sky background

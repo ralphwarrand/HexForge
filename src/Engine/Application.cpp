@@ -1,10 +1,13 @@
-//Hex
+//Hex::Engine
 #include "Engine/Application.h"
 #include "Engine/Logger.h"
-#include "Renderer/Renderer.h"
-#include "Renderer/Camera.h"
 #include "Engine/ResourceManagement/ResourceManager.h"
 #include "Engine/ResourceManagement/TextureResource.h"
+//Hex::Renderer
+#include "Renderer/Renderer.h"
+//Hex::EntityManager
+#include "Gameplay/EntityManager.h"
+#include "Gameplay/EntityComponents.h"
 
 //Lib
 #include <GLFW/glfw3.h>
@@ -16,6 +19,7 @@
 
 //STL
 #include <cstdlib>
+#include <Engine/Application.h>
 #include <Engine/Application.h>
 
 namespace Hex
@@ -44,26 +48,34 @@ namespace Hex
 
 		m_resource_manager = std::make_unique<ResourceManager>();
 		m_renderer = std::make_unique<Renderer>(application_spec);
+		m_entity_manager = std::make_unique<EntityManager>();
+
 		InitImgui(m_renderer->GetWindow());
-
-
-
-		// Load a texture
-		auto texture = m_resource_manager->loadResource<Hex::TextureResource>(RESOURCES_PATH "textures/debug/test.bmp");
-
-		if (texture)
-		{
-			std::cout << "Texture loaded successfully!" << std::endl;
-			std::cout << "Width: " << texture->width << ", Height: " << texture->height << std::endl;
-		}
-		else
-		{
-			std::cerr << "Failed to load texture." << std::endl;
-		}
-
 
 		m_specification = application_spec;
 		m_running = true;
+
+		// Load a texture
+		{
+			auto texture = m_resource_manager->loadResource<Hex::TextureResource>(RESOURCES_PATH "textures/debug/test.bmp");
+
+			if (texture)
+			{
+				std::cout << "Texture loaded successfully!" << std::endl;
+				std::cout << "Width: " << texture->width << ", Height: " << texture->height << std::endl;
+			}
+			else
+			{
+				std::cerr << "Failed to load texture." << std::endl;
+			}
+		}
+
+		auto entity1 = m_entity_manager->CreateEntity("Player");
+		m_entity_manager->AddComponent<Position>(entity1, 10.0f, 20.0f, 10.f);
+		m_entity_manager->AddComponent<Velocity>(entity1, 5.0f, -3.0f, 1.f);
+
+		m_entity_manager->PrintEntitiesWithComponent<Position>();
+
 	}
 
 	void Application::InitTimezone() {

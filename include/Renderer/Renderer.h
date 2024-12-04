@@ -5,7 +5,6 @@
 
 //Lib
 #include <glm/glm.hpp>
-#include <glad/glad.h>
 
 //STL
 #include <memory>
@@ -53,7 +52,8 @@ namespace Hex
         void InitOpenGLContext(const AppSpecification& app_spec);
         void SetupCallBacks();
         static void LogRendererInfo();
-        void CheckFrameBufferStatus();
+
+        static void CheckFrameBufferStatus();
 
         void InitShadowMap();
         void InitFrameBuffer(const int& width, const int& height);
@@ -114,7 +114,7 @@ namespace Hex
     template <typename T, typename... Args>
     T* Renderer::AddAndGetPrimitive(Args&&... args)
     {
-        static_assert(std::is_base_of<Primitive, T>::value, "T must derive from Primitive");
+        static_assert(std::is_base_of_v<Primitive, T>, "T must derive from Primitive");
 
         // Create and store the primitive
         auto primitive = std::make_shared<T>(std::forward<Args>(args)...);
