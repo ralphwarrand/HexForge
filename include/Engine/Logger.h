@@ -5,6 +5,7 @@
 #include <string>
 #include <mutex>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include "fmt/core.h"
 #include "date/date.h"
@@ -22,6 +23,16 @@ namespace Hex {
 
     class Logger {
     public:
+
+        // Add a type for the log callback
+        using LogCallback = std::function<void(LogLevel, const std::string&)>;
+
+        // Method to register a callback
+        void AddLogCallback(const LogCallback& callback) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            callbacks_.push_back(callback);
+        }
+
         static Logger& Instance() {
             static Logger instance;
             return instance;
@@ -48,13 +59,13 @@ namespace Hex {
             }
         }
 
+
         void Log(const LogLevel level, const std::string& msg) {
             if (level < log_level_) return;
 
             std::lock_guard<std::mutex> lock(mutex_);
 
             const auto now = std::chrono::system_clock::now();
-
             auto local_time = date::format("%F %H:%M:%S",
                 date::make_zoned(date::current_zone(),
                     std::chrono::time_point_cast<std::chrono::seconds>(now))
@@ -80,6 +91,11 @@ namespace Hex {
                 ofs_ << log_entry << '\n';
                 ofs_.flush(); // Ensure immediate writing to the file
             }
+
+            // Notify all registered callbacks
+            for (const auto& callback : callbacks_) {
+                callback(level, log_entry);
+            }
         }
 
         void Clear() {
@@ -97,7 +113,7 @@ namespace Hex {
         Logger& operator=(Logger&&) = delete;
 
     private:
-        Logger() : log_level_(LogLevel::Info), log_file_("log.txt") {
+        Logger() : log_level_(LogLevel::Debug), log_file_("log.txt") {
             ofs_.open(log_file_, std::ios_base::trunc | std::ios_base::out);
         }
 
@@ -111,6 +127,7 @@ namespace Hex {
         std::string log_file_;
         std::ofstream ofs_;
         std::mutex mutex_;
+        std::vector<LogCallback> callbacks_;
     };
 
     // Helper function for convenience

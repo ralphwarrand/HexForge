@@ -14,11 +14,14 @@ struct GLFWwindow;
 
 namespace Hex
 {
+    // Forward declarations
+    class Console;
+
     class Renderer
     {
     public:
         Renderer() = delete;
-        explicit Renderer(const AppSpecification& application_spec);
+        explicit Renderer(const AppSpecification& application_spec, const std::shared_ptr<Console>& console);
         ~Renderer();
 
         Renderer(const Renderer&) = delete;
@@ -75,6 +78,8 @@ namespace Hex
         // Define a unique_ptr with a custom deleter type alias
         using GLFWwindowPtr = std::unique_ptr<GLFWwindow, void(*)(GLFWwindow*)>;
         GLFWwindowPtr m_window;
+
+        std::shared_ptr<Console> m_console{nullptr};
 
         std::unique_ptr<Camera> m_camera{nullptr};
         RenderData m_render_data{};

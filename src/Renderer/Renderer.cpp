@@ -1,7 +1,9 @@
 //Hex
-#include "Renderer/Renderer.h"
+
 #include "Engine/Logger.h"
 #include "Engine/Application.h"
+#include "Engine/Console.h"
+#include "Renderer/Renderer.h"
 #include "Renderer/ShaderManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Camera.h"
@@ -31,8 +33,10 @@ namespace Hex
 		}
 	}
 
-	Renderer::Renderer(const AppSpecification& application_spec): m_window(nullptr, GLFWwindowDeleter)
+	Renderer::Renderer(const AppSpecification& application_spec, const std::shared_ptr<Console>& console): m_window(nullptr, GLFWwindowDeleter)
 	{
+		m_console = console;
+
 		Init(application_spec);
 	}
 
@@ -84,6 +88,8 @@ namespace Hex
 
 		// Render ImGui interface
 		ShowDebugUI(delta_time);
+		m_console->Render();
+
 		EndImGuiFrame(delta_time);
 
 		glfwSwapBuffers(m_window.get());

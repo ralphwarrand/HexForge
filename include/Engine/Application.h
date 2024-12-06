@@ -9,6 +9,7 @@ struct GLFWwindow;
 namespace Hex
 {
 	// Forward declaration
+	class Console;
 	class Renderer;
 	class ResourceManager;
 	class EntityManager;
@@ -49,6 +50,7 @@ namespace Hex
 		static void SetImGuiStyle();
 
 		// Application guts
+		std::shared_ptr<Console> m_console{nullptr};
 		std::unique_ptr<Renderer> m_renderer{nullptr};
 		std::unique_ptr<ResourceManager> m_resource_manager{nullptr};
 		std::unique_ptr<EntityManager> m_entity_manager{nullptr};

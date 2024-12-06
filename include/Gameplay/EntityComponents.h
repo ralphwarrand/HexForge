@@ -27,10 +27,6 @@ namespace Hex
 		const float& y() const { return value.y; }
 		const float& z() const { return value.z; }
 
-		// Overload the stream operator for easy printing
-		friend std::ostream& operator<<(std::ostream& os, const Position& pos) {
-			return os << "Position: (" << pos.x() << ", " << pos.y() << ", " << pos.z() << ")";
-		}
 	};
 
 	struct Velocity
@@ -55,20 +51,18 @@ namespace Hex
 		const float& y() const { return value.y; }
 		const float& z() const { return value.z; }
 
-		// Overload the stream operator for easy printing
-		friend std::ostream& operator<<(std::ostream& os, const Velocity& vel) {
-			return os << "Velocity: (" << vel.x() << ", " << vel.y() << ", " << vel.z() << ")";
-		}
 	};
 }
+
+
 
 
 // Specialize std::formatter for Hex::Position in the std namespace
 template <>
 struct std::formatter<Hex::Position> : std::formatter<std::string> {
-	auto format(const Hex::Position& pos, std::format_context& ctx) const { // Add const qualifier here
+	auto format(const Hex::Position& pos, std::format_context& ctx) const {
 		return std::formatter<std::string>::format(
-			std::format("({:.2f}, {:.2f}, {:.2f})", pos.x(), pos.y(), pos.z()),
+			std::format("Position: ({:.2f}, {:.2f}, {:.2f})", pos.x(), pos.y(), pos.z()),
 			ctx
 		);
 	}

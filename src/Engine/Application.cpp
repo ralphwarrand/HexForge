@@ -3,6 +3,7 @@
 #include "Engine/Logger.h"
 #include "Engine/ResourceManagement/ResourceManager.h"
 #include "Engine/ResourceManagement/TextureResource.h"
+#include "Engine/Console.h"
 //Hex::Renderer
 #include "Renderer/Renderer.h"
 //Hex::EntityManager
@@ -46,8 +47,9 @@ namespace Hex
 	{
 		InitTimezone();
 
+		m_console = std::make_shared<Console>();
 		m_resource_manager = std::make_unique<ResourceManager>();
-		m_renderer = std::make_unique<Renderer>(application_spec);
+		m_renderer = std::make_unique<Renderer>(application_spec, m_console);
 		m_entity_manager = std::make_unique<EntityManager>();
 
 		InitImgui(m_renderer->GetWindow());
@@ -74,7 +76,7 @@ namespace Hex
 		m_entity_manager->AddComponent<Position>(entity1, 10.0f, 20.0f, 10.f);
 		m_entity_manager->AddComponent<Velocity>(entity1, 5.0f, -3.0f, 1.f);
 
-		m_entity_manager->PrintEntitiesWithComponent<Position>();
+
 
 	}
 
@@ -193,9 +195,14 @@ namespace Hex
 			delta_time = current_frame - last_frame;
 			last_frame = current_frame;
 
+			m_entity_manager->TickComponents(delta_time);
 			m_renderer->Tick(delta_time);
 
 			glfwPollEvents();
+
+
+
+			m_entity_manager->PrintEntitiesWithComponent<Position>();
 		}
 	}
 }

@@ -118,6 +118,8 @@ namespace Hex
 
 	void Camera::ProcessMouseScroll(const float& y_offset)
 	{
+		if(m_mouse_shown) return;
+
 		m_zoom -= y_offset;
 		if (m_zoom < 1.0f)
 			m_zoom = 1.0f;
