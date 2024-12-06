@@ -203,6 +203,7 @@ namespace Hex
 
 
 			m_entity_manager->PrintEntitiesWithComponent<Position>();
+			m_entity_manager->PrintEntitiesWithComponent<Velocity>();
 		}
 	}
 }

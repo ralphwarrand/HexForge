@@ -67,3 +67,14 @@ struct std::formatter<Hex::Position> : std::formatter<std::string> {
 		);
 	}
 };
+
+// Specialize std::formatter for Hex::Velocity in the std namespace
+template <>
+struct std::formatter<Hex::Velocity> : std::formatter<std::string> {
+	auto format(const Hex::Velocity& vel, std::format_context& ctx) const {
+		return std::formatter<std::string>::format(
+			std::format("Velocity: ({:.2f}, {:.2f}, {:.2f})", vel.x(), vel.y(), vel.z()),
+			ctx
+		);
+	}
+};
