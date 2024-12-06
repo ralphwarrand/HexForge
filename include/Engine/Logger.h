@@ -11,6 +11,8 @@
 #include "date/date.h"
 #include "date/tz.h"
 
+#include "Gameplay/EntityComponents.h"
+
 namespace Hex {
 
     enum class LogLevel {

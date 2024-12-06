@@ -4,6 +4,7 @@
 #include <string>
 #include <mutex>
 #include <functional>
+#include "Gameplay/EntityComponents.h"
 
 namespace Hex
 {
