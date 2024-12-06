@@ -67,13 +67,17 @@ namespace Hex
             registry.remove<Component>(entity);
         }
 
-        // Print all entities and their components (debugging utility)
-        template<typename Component>
+        // Print all entities with component
+        template <typename Component>
         void PrintEntitiesWithComponent() const
         {
-            for (auto view = registry.view<Component>(); auto entity : view) {
-                const auto& component = view.get<Component>(entity);
-                Log(Hex::LogLevel::Debug, std::format("Entity: {} Component: {}",  static_cast<int>(entity) , component ));
+            // Iterate over entities in the view
+            for (auto view = registry.view<Component>(); const auto entity : view) {
+                // Use the template keyword to disambiguate the dependent name
+                const auto& component = view.template get<Component>(entity);
+
+                // Log the entity and its component
+                Log(Hex::LogLevel::Debug, std::format("Entity: {} Component: {}", static_cast<int>(entity), component));
             }
         }
 
