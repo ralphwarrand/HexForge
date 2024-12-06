@@ -78,3 +78,7 @@ struct std::formatter<Hex::Velocity> : std::formatter<std::string> {
 		);
 	}
 };
+
+// Explicit template instantiation for linker visibility
+template struct std::formatter<Hex::Position>;
+template struct std::formatter<Hex::Velocity>;
