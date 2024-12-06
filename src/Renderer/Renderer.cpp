@@ -16,6 +16,7 @@
 #include "Renderer/Primitives/ScreenQuad.h"
 
 //Lib
+#define GLM_FORCE_SILENT_WARNINGS
 #define GLM_ENABLE_EXPERIMENTAL
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>

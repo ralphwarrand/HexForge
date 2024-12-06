@@ -34,6 +34,10 @@ jobs:
         run: |
           brew update
           brew install cmake curl  # Only install curl on macOS
+          brew install llvm
+          export PATH="/usr/local/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include
 
       - name: Configure CMake (Linux & macOS)
         if: runner.os != 'Windows'

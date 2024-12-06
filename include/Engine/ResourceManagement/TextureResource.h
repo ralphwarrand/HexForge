@@ -4,6 +4,9 @@
 #include "Engine/ResourceManagement/ResourceBase.h"
 
 //Lib
+#define STBI_MALLOC(size) std::malloc(size)
+#define STBI_REALLOC(ptr, size) std::realloc(ptr, size)
+#define STBI_FREE(ptr) std::free(ptr)
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
 
