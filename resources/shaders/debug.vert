@@ -35,4 +35,7 @@ void main()
 
     // Transform the position to clip space
     gl_Position = projection * view * vec4(position, 1.0);
+
+    // Project into light’s clip space for shadow lookups
+    fragPosLightSpace = light_space_matrix * vec4(position, 1.0);
 }

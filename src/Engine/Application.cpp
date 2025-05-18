@@ -73,8 +73,8 @@ namespace Hex
 		}
 
 		auto entity1 = m_entity_manager->CreateEntity("Player");
-		m_entity_manager->AddComponent<Position>(entity1, 10.0f, 20.0f, 10.f);
-		m_entity_manager->AddComponent<Velocity>(entity1, 5.0f, -3.0f, 1.f);
+		m_entity_manager->AddComponent<Position>(entity1, 10.f, 20.f, 10.f);
+		m_entity_manager->AddComponent<Velocity>(entity1,  5.f, -3.f,  1.f);
 
 
 
@@ -202,8 +202,8 @@ namespace Hex
 
 
 
-			m_entity_manager->PrintEntitiesWithComponent<Position>();
-			m_entity_manager->PrintEntitiesWithComponent<Velocity>();
+			//m_entity_manager->PrintEntitiesWithComponent<Position>();
+			//m_entity_manager->PrintEntitiesWithComponent<Velocity>();
 		}
 	}
 }

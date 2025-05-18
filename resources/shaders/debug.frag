@@ -14,6 +14,8 @@ layout(std140, binding = 0) uniform RenderData {
 };
 
 uniform sampler2D shadow_map;
+uniform vec2 MapSize;
+
 uniform mat4 light_space_matrix;
 uniform bool should_shade;
 
@@ -22,6 +24,8 @@ in vec3 fragNormal;
 in vec3 fragColor;
 
 out vec4 color;
+
+#define EPSILON 0.00001
 
 vec3 dither(vec3 color) {
     float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
@@ -34,29 +38,20 @@ vec3 gammaCorrect(vec3 color) {
 
 float ShadowCalculation(vec4 frag_pos_light_space)
 {
-    // Transform the fragment position from light space to normalized device coordinates (NDC)
-    vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
-    proj_coords = proj_coords * 0.5 + 0.5; // Transform from NDC range [-1, 1] to [0, 1]
+    vec3 proj = frag_pos_light_space.xyz/frag_pos_light_space.w;
+    proj = proj*0.5 + 0.5;
+    if (proj.z > 1.0) return 1.0;
 
-    // Check if the projected coordinates are outside the shadow map bounds or behind the light
-    if (proj_coords.z > 1.0 || proj_coords.x < 0.0 || proj_coords.x > 1.0 || proj_coords.y < 0.0 || proj_coords.y > 1.0)
-    return 1.0;
-
-    // Use PCF for smoother shadows
     float shadow = 0.0;
-    vec2 texel_size = vec2(1.0 / textureSize(shadow_map, 0));
-
-    // Sample 3x3 grid around the current point for smoother shadows
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 offset = vec2(x, y) * texel_size;
-            float closest_depth = texture(shadow_map, proj_coords.xy + offset).r;
-            shadow += (proj_coords.z - 0.005) > closest_depth ? 0.0 : 1.0;
-        }
+    float bias = max(0.05 * (1.0 - dot(fragNormal, normalize(light_pos - vec3(0.f)))), 0.001);
+    vec2 ts = 1.0 / vec2(textureSize(shadow_map,0));
+    // 5×5 kernel
+    for(int x=-2; x<=2; ++x)
+    for(int y=-2; y<=2; ++y) {
+        float d = texture(shadow_map, proj.xy + vec2(x,y)*ts).r;
+        shadow += (proj.z - bias > d) ? 0.0 : 1.0;
     }
-
-    shadow /= 9.0; // Normalize by the number of samples
-    return shadow;
+    return shadow / 25.0;
 }
 
 void main()

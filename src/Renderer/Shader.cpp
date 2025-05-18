@@ -55,6 +55,10 @@ namespace Hex
         glUniform1f(GetUniformLocation(name), value);
     }
 
+    void Shader::SetUniform2f(const std::string& name, const float x, const float y) {
+        glUniform2f(GetUniformLocation(name), x, y);
+    }
+
     void Shader::SetUniformVec3(const std::string& name, const glm::vec3& value) {
         glUniform3fv(GetUniformLocation(name), 1, &value[0]);
     }

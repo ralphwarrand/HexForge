@@ -46,7 +46,7 @@ namespace Hex
 		GLuint texture{0};     // Texture to store the depth information
 		glm::mat4 light_view{glm::mat4(1.f)};          // View matrix for the light
 		glm::mat4 light_projection{glm::mat4(1.f)};    // Projection matrix for the light
-		int shadow_width{2048}, shadow_height{2048};
+		int shadow_width{4096}, shadow_height{4096};
 	};
 
 	struct FrameBuffer

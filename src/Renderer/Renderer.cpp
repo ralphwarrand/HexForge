@@ -127,7 +127,6 @@ namespace Hex
 				random_colour
 			);
 
-			//TODO: Sphere hashing
 			GetOrCreateSphereBatch()->AddSphere(
 				glm::vec3(2 + x * spacing, 0.f, -2 + -z * spacing),
 				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
@@ -328,11 +327,16 @@ namespace Hex
 		// Create the depth texture
 		glGenTextures(1, &m_shadow_map.texture);
 		glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, m_shadow_map.shadow_width, m_shadow_map.shadow_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+			m_shadow_map.shadow_width, m_shadow_map.shadow_height, 0, GL_DEPTH_COMPONENT,
+			GL_FLOAT, nullptr);
+
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
 		constexpr float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
 
@@ -368,6 +372,11 @@ namespace Hex
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_frame_buffer.texture, 0);
 
 		// Create and attach depth-stencil renderbuffer
@@ -417,10 +426,14 @@ namespace Hex
 
 		glEnable(GL_DEPTH_TEST);
 
+		// **NV**: cull front faces when writing depth
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+
 		// Set up the light's view and projection matrices
 		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
 		m_shadow_map.light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_shadow_map.light_projection = glm::ortho(-40.0f, 40.0f, -40.0f, 40.0f, 5.0f, 100.0f);
+		m_shadow_map.light_projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 5.0f, 100.0f);
 
 		auto shadow_shader = ShaderManager::GetOrCreateShader(
 			RESOURCES_PATH "shaders/shadow.vert",
@@ -441,10 +454,10 @@ namespace Hex
 
 			primitive->Draw();
 
-			if (primitive->ShouldCullBackFaces()) {
-				glDisable(GL_CULL_FACE);
-			}
 		}
+
+		glCullFace(GL_BACK);
+		glDisable(GL_CULL_FACE);
 
 		Hex::Shader::Unbind();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
@@ -500,6 +513,9 @@ namespace Hex
 			{
 				shader->SetUniform1i("shadow_map", 0);
 				shader->SetUniform1i("should_shade", primitive.get()->ShouldShade());
+				shader->SetUniform2f("MapSize",
+					float(m_shadow_map.shadow_width),
+					float(m_shadow_map.shadow_height));
 				shader->SetUniformMat4("light_space_matrix", m_shadow_map.light_projection * m_shadow_map.light_view);
 			}
 

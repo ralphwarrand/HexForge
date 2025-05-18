@@ -15,6 +15,8 @@ namespace Hex
         Shader(const std::string& vertex_path, const std::string& fragment_path);
         ~Shader();
 
+
+
         Shader(const Shader&) = default;
         Shader(Shader&&)  noexcept = default;
 
@@ -29,6 +31,7 @@ namespace Hex
         // Uniform setting methods
         void SetUniform1i(const std::string& name, int value);
         void SetUniform1f(const std::string& name, float value);
+        void SetUniform2f(const std::string& name, float x, float y);
         void SetUniformVec3(const std::string& name, const glm::vec3& value);
         void SetUniformMat4(const std::string& name, const glm::mat4& matrix);
 
