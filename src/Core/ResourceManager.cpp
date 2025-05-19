@@ -1,4 +1,6 @@
-﻿#include "Core/ResourceManager.h"
+﻿#include "pch.h"
+
+#include "Core/ResourceManager.h"
 
 // Third-party
 #include <stb_image/stb_image.h>

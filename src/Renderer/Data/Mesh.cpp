@@ -1,4 +1,6 @@
-﻿#include "Renderer/Data/Mesh.h"
+﻿#include "pch.h"
+
+#include "Renderer/Data/Mesh.h"
 
 namespace Hex
 {

@@ -14,6 +14,8 @@ namespace Hex
 	class Renderer;
 	class EntityManager;
 
+	using SceneBuilder = std::function<void(EntityManager&)>;
+
 	// Struct containing parameters to set application settings
 	struct AppSpecification 
 	{
@@ -28,7 +30,7 @@ namespace Hex
 	{
 	public:
 		Application() = delete;
-		explicit Application(const AppSpecification& application_spec = AppSpecification());
+		explicit Application(const AppSpecification& application_spec = AppSpecification(), const SceneBuilder& scene_builder = SceneBuilder());
 		~Application();
 		
 		Application(const Application&) = delete;
@@ -53,6 +55,7 @@ namespace Hex
 		std::shared_ptr<Console> m_console{nullptr};
 		std::unique_ptr<Renderer> m_renderer{nullptr};
 		std::unique_ptr<EntityManager> m_entity_manager{nullptr};
+		SceneBuilder m_sceneBuilder;
 
 		AppSpecification m_specification{};
 		bool m_running{false};

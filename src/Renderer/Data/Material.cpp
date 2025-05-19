@@ -1,4 +1,6 @@
-﻿#include "Renderer/Data/Material.h"
+﻿#include "pch.h"
+
+#include "Renderer/Data/Material.h"
 
 namespace Hex {
 

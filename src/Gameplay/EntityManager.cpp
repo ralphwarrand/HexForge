@@ -1,6 +1,7 @@
+#include "pch.h"
+
 //Hex
 #include "Gameplay/EntityManager.h"
-
 #include "Gameplay/EntityComponents.h"
 
 namespace Hex

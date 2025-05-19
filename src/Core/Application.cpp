@@ -1,12 +1,4 @@
-// STL
-#include <iostream>
-
-//Lib
-#include <GLFW/glfw3.h>
-#define IMGUI_ENABLE_DOCKING
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
+#include "pch.h"
 
 // Hex
 #include "Core/Application.h"
@@ -15,15 +7,14 @@
 #include "Renderer/Renderer.h"
 #include "Gameplay/EntityManager.h"
 #include "Gameplay/EntityComponents.h"
-#include "glm/gtc/random.hpp"
 #include "Renderer/Data/Model.h"
 #include "Renderer/Data/Mesh.h"
 #include "Renderer/Data/Material.h"
 
 namespace Hex
 {
-	Application::Application(const AppSpecification& application_spec)
-	{
+	Application::Application(const AppSpecification& application_spec, const SceneBuilder& scene_builder)
+	: m_sceneBuilder(std::move(scene_builder)) {
 		Init(application_spec);
 	}
 
@@ -51,56 +42,10 @@ namespace Hex
 		InitImgui(m_renderer->GetWindow());
 
 		m_specification = application_spec;
+
+		m_sceneBuilder(*m_entity_manager);
+
 		m_running = true;
-
-		auto testMat = ResourceManager::LoadMaterial(
-			"testMat", // cache key
-			RESOURCES_PATH "shaders/debug.vert", RESOURCES_PATH "shaders/debug.frag",
-			RESOURCES_PATH "textures/debug/test.bmp",                       // albedo
-			RESOURCES_PATH "textures/debug/test.bmp"                         // normal map
-		);
-
-		for (int i = -25; i < 25; i++)
-		{
-			for (int j = -25; j < 25; j++)
-			{
-				auto e = m_entity_manager->CreateEntity("entity" + i + j);
-				m_entity_manager->AddComponent<TransformComponent>(e, TransformComponent{
-					{i * 0.5f, 0.5f, j * 0.5f},
-					glm::quat{},
-					{2.0f, 2.0f, 2.0f}
-				});
-
-				auto bunnyMesh = ResourceManager::LoadModel(RESOURCES_PATH "models/bunny.obj");
-				m_entity_manager->AddComponent<ModelComponent>(
-					e, ModelComponent{ bunnyMesh }
-				);
-
-				m_entity_manager->AddComponent<MaterialComponent>(
-					e, MaterialComponent{ testMat }
-				);
-
-				m_entity_manager->AddComponent<RotatingComponent>(
-					e, RotatingComponent{ glm::linearRand(50.f, 120.f), glm::sphericalRand(1.f) }
-				);
-			}
-		}
-
-		auto e = m_entity_manager->CreateEntity("floor");
-		m_entity_manager->AddComponent<TransformComponent>(e, TransformComponent{
-			{0.0f, -2.f, 0.0f},
-			glm::quat{},
-			{20.0f, 1.0f, 20.0f}
-		});
-
-		auto cubeMesh = ResourceManager::LoadModel(RESOURCES_PATH "models/cube.obj");
-		m_entity_manager->AddComponent<ModelComponent>(
-			e, ModelComponent{ cubeMesh }
-		);
-
-		m_entity_manager->AddComponent<MaterialComponent>(
-			e, MaterialComponent{ testMat }
-		);
 	}
 
 	void Application::InitTimezone()

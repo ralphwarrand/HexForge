@@ -49,6 +49,11 @@ add_executable("${CMAKE_PROJECT_NAME}" src/main.cpp)
 target_sources("${CMAKE_PROJECT_NAME}" PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/date/src/tz.cpp)
 target_sources("${CMAKE_PROJECT_NAME}" PRIVATE ${MY_SOURCES})
 
+target_precompile_headers(Hexahedron
+		PRIVATE
+		${PROJECT_SOURCE_DIR}/include/pch.h
+)
+
 # Include directories
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 target_include_directories("${CMAKE_PROJECT_NAME}" PRIVATE ${CMAKE_SOURCE_DIR}/thirdparty/entt)

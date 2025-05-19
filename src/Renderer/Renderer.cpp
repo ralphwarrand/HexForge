@@ -1,3 +1,5 @@
+#include "pch.h"
+
 //Hex
 #include "Core/Logger.h"
 #include "Core/Application.h"
@@ -272,6 +274,8 @@ namespace Hex
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
 		constexpr float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map.fbo);

@@ -1,3 +1,5 @@
+#include "pch.h"
+
 //Hex
 #include "Renderer/ShaderManager.h"
 

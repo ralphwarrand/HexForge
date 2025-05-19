@@ -1,8 +1,9 @@
-﻿#include "Core/Logger.h"
+﻿#include "pch.h"
+
+#include "Core/Logger.h"
 
 // STL
-#include <iostream>
-#include "fmt/format.h"
+
 
 
 void Hex::Logger::SetLogFile(const std::string &filename)

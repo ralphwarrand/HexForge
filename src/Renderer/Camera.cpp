@@ -1,6 +1,7 @@
-﻿//Hex
+﻿#include "pch.h"
+
+//Hex
 #include "Renderer/Camera.h"
-#include "Core/Logger.h"
 
 //Lib
 #include <GLFW/glfw3.h>

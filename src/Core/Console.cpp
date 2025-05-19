@@ -1,7 +1,6 @@
-#include "Core/Console.h"
+#include "pch.h"
 
-// Third-party
-#include "imgui.h"
+#include "Core/Console.h"
 
 // Hex
 #include "Core/Logger.h"

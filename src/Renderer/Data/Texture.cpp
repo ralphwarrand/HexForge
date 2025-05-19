@@ -1,5 +1,6 @@
-﻿#include "../../../include/Renderer/Data/Texture.h"
-#include <utility>
+﻿#include "pch.h"
+
+#include "Renderer/Data/Texture.h"
 
 namespace Hex {
 

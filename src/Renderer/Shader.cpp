@@ -1,4 +1,6 @@
-﻿//Hex
+﻿#include "pch.h"
+
+//Hex
 #include "Renderer/Shader.h"
 #include "Core/Logger.h"
 
