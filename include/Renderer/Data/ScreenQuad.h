@@ -1,4 +1,6 @@
 #pragma once
+
+// Third-party
 #include <glad/glad.h>
 
 namespace Hex
@@ -7,10 +9,9 @@ namespace Hex
 	struct ScreenQuad
   	{
     	ScreenQuad()
-        {
-          InitBuffers();
-
-        }
+		{
+    		InitBuffers();
+    	}
 
 		~ScreenQuad()
 		{

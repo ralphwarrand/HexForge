@@ -1,12 +1,12 @@
 ﻿#pragma once
 
-//Lib
-#include <glad/glad.h>
-#include <glm/fwd.hpp>
-
 //STL
 #include <string>
 #include <unordered_map>
+
+// Third-party
+#include <glad/glad.h>
+#include <glm/fwd.hpp>
 
 namespace Hex
 {
@@ -14,8 +14,6 @@ namespace Hex
     public:
         Shader(const std::string& vertex_path, const std::string& fragment_path);
         ~Shader();
-
-
 
         Shader(const Shader&) = default;
         Shader(Shader&&)  noexcept = default;

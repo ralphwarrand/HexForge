@@ -1,6 +1,6 @@
 #pragma once
 
-//Lib
+// Third-party
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 
@@ -11,21 +11,7 @@ namespace Hex
 	class Camera;
 	class Shader;
 	class Mesh;
-
-	// Primitives
-	class Primitive;
-	class LineBatch;
-	class SphereBatch;
-	class CubeBatch;
 	struct ScreenQuad;
-
-	struct Material
-	{
-		glm::vec3 ambient_color;
-		glm::vec3 diffuse_color;
-		glm::vec3 specular_color;
-		float shininess;
-	};
 
 	struct alignas(16) RenderData
 	{
@@ -46,7 +32,7 @@ namespace Hex
 		GLuint texture{0};     // Texture to store the depth information
 		glm::mat4 light_view{glm::mat4(1.f)};          // View matrix for the light
 		glm::mat4 light_projection{glm::mat4(1.f)};    // Projection matrix for the light
-		int shadow_width{4096}, shadow_height{4096};
+		int shadow_width{2048}, shadow_height{2048};
 	};
 
 	struct FrameBuffer

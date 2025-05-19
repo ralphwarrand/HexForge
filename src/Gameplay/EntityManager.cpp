@@ -1,18 +1,26 @@
 //Hex
 #include "Gameplay/EntityManager.h"
 
+#include "Gameplay/EntityComponents.h"
+
 namespace Hex
 {
 	void EntityManager::TickComponents(const float& delta_time)
 	{
-		// Iterate over entities with both Position and Velocity components
-		registry.view<Hex::Position, Hex::Velocity>().each(
-        	[&delta_time](Hex::Position& pos, const Hex::Velocity& vel)
-        	{
-				pos.value += vel.value * delta_time; // Update position by velocity
-			}
-        );
+		// iterate all entities with a Transform + Rotating
+		auto view = registry.view<TransformComponent, RotatingComponent>();
+		for (auto entity : view)
+		{
+			auto &tf = view.get<TransformComponent>(entity);
+			auto &rc = view.get<RotatingComponent>(entity);
 
+			// compute the small rotation quaternion for this frame
+			float angle_rad = glm::radians(rc.rate * delta_time);
+			glm::quat dq    = glm::angleAxis(angle_rad, glm::normalize(rc.axis));
+
+			// apply it to the current orientation
+			tf.orientation = glm::normalize(dq * tf.orientation);
+		}
     }
 
 	entt::entity EntityManager::CreateEntity(const std::string& name)

@@ -1,21 +1,23 @@
 #pragma once
 
-//Hex
-#include "EntityComponents.h"
-#include "Engine/Logger.h"
-
-//Lib
-#include <entt/entt.hpp>
-
 //STL
-#include <iostream>
 #include <string>
 #include <unordered_map>
+
+// Third-party
+#include <entt/entt.hpp>
+
+//Hex
+#include "Core/Logger.h"
 
 namespace Hex
 {
     class EntityManager {
     public:
+
+        entt::registry& GetRegistry() { return registry; }
+        const entt::registry& GetRegistry() const { return registry; }
+
         //Tick entity components
         void TickComponents(const float& delta_time);
 
@@ -23,10 +25,10 @@ namespace Hex
         entt::entity CreateEntity(const std::string& name = "");
 
         // Get an entity by name
-        entt::entity GetEntity(const std::string& name) const;
+        [[nodiscard]] entt::entity GetEntity(const std::string& name) const;
 
         // Check if an entity exists by name
-        bool EntityExists(const std::string& name) const;
+        [[nodiscard]] bool EntityExists(const std::string& name) const;
 
         // Destroy an entity
         void DestroyEntity(entt::entity entity) {

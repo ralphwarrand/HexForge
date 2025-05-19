@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.20) # Using a newer version for better cross-platform support
 cmake_policy(SET CMP0115 NEW)
 cmake_policy(SET CMP0069 NEW)
+if(POLICY CMP0175)
+	cmake_policy(SET CMP0175 OLD)
+endif()
 
 # Project settings
 project(Hexahedron)
@@ -36,6 +39,7 @@ add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/imgui-docking)
 add_subdirectory(thirdparty/date)
 add_subdirectory(thirdparty/fmt)
+add_subdirectory(thirdparty/assimp)
 
 # Include source files
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -75,4 +79,4 @@ else()
 endif()
 
 # Link libraries
-target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw glad stb_image stb_truetype imgui date fmt-header-only)
+target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw glad stb_image stb_truetype imgui date fmt-header-only assimp)

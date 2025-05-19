@@ -1,6 +1,6 @@
 ﻿//Hex
 #include "Renderer/Shader.h"
-#include "Engine/Logger.h"
+#include "Core/Logger.h"
 
 //Lib
 #include <glm/glm.hpp>

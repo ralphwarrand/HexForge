@@ -1,4 +1,5 @@
 #pragma once
+
 //STL
 #include <string>
 #include <cstdint>
@@ -11,7 +12,6 @@ namespace Hex
 	// Forward declaration
 	class Console;
 	class Renderer;
-	class ResourceManager;
 	class EntityManager;
 
 	// Struct containing parameters to set application settings
@@ -52,7 +52,6 @@ namespace Hex
 		// Application guts
 		std::shared_ptr<Console> m_console{nullptr};
 		std::unique_ptr<Renderer> m_renderer{nullptr};
-		std::unique_ptr<ResourceManager> m_resource_manager{nullptr};
 		std::unique_ptr<EntityManager> m_entity_manager{nullptr};
 
 		AppSpecification m_specification{};

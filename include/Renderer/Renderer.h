@@ -1,16 +1,16 @@
 #pragma once
 
-//Hex
-#include "RenderStructs.h"
 
-//Lib
+
+// Third-party
 #include <glm/glm.hpp>
+#include <entt/entt.hpp>
 
 //STL
 #include <memory>
-#include <vector>
 
-#include "entt/entt.hpp"
+//Hex
+#include "Data/RenderStructs.h"
 
 struct GLFWwindow;
 
@@ -23,7 +23,7 @@ namespace Hex
     {
     public:
         Renderer() = delete;
-        explicit Renderer(const AppSpecification& application_spec, const std::shared_ptr<Console>& console);
+        Renderer(entt::registry& registry, const AppSpecification& application_spec, const std::shared_ptr<Console>& console);
         ~Renderer();
 
         Renderer(const Renderer&) = delete;
@@ -33,20 +33,6 @@ namespace Hex
         Renderer& operator=(Renderer&&) = delete;
 
         void Tick(const float& delta_time);
-
-        void CreateTestScene();
-
-        template <typename T, typename... Args>
-        void AddPrimitive(Args&&... args);
-
-        void RemovePrimitive(Primitive* primitive);
-
-        template <typename T, typename... Args>
-        T* AddAndGetPrimitive(Args&&... args);
-
-        LineBatch* GetOrCreateLineBatch();
-        SphereBatch* GetOrCreateSphereBatch();
-        CubeBatch* GetOrCreateCubeBatch();
 
         // Getters
         [[nodiscard]] GLFWwindow* GetWindow() const;
@@ -60,17 +46,20 @@ namespace Hex
 
         static void CheckFrameBufferStatus();
 
+        // Buffers
         void InitShadowMap();
         void InitFrameBuffer(const int& width, const int& height);
         void BindFrameBuffer() const;
         void BindWindowBuffer() const;
-        void RenderShadowMap();
+
+        // Rendering
         void RenderFullScreenQuad() const;
         void RenderScene() const;
+        void RenderShadowMap();
+
         void UpdateRenderData();
 
         void SetLightPos(const glm::vec3& pos);
-        static void DrawOrigin(LineBatch& line_batch);
 
         //ImGui
         static void StartImGuiFrame();
@@ -81,53 +70,32 @@ namespace Hex
         using GLFWwindowPtr = std::unique_ptr<GLFWwindow, void(*)(GLFWwindow*)>;
         GLFWwindowPtr m_window;
 
+        // Access to application console
         std::shared_ptr<Console> m_console{nullptr};
 
+        // Scene information
+        entt::registry& m_registry;
         std::unique_ptr<Camera> m_camera{nullptr};
         RenderData m_render_data{};
         RenderData m_old_render_data{};
 
-        std::vector<std::shared_ptr<Primitive>> m_primitives;
-        LineBatch* m_cached_line_batch{nullptr};
-        SphereBatch* m_cached_sphere_batch{nullptr};
-        CubeBatch* m_cached_cube_batch{nullptr};
-        std::unique_ptr<ScreenQuad> m_screen_quad{nullptr};
-
-        glm::vec3 m_light_pos{};
+        // Buffers
+        FrameBuffer m_frame_buffer{};
         ShadowMap m_shadow_map{};
+        std::unique_ptr<ScreenQuad> m_screen_quad{nullptr};
+        GLuint m_uboRenderData = 0;
 
+        //Lighting
+        glm::vec3 m_light_pos{20.f, 10.f, 20.f};
+
+        // Debug Settings
         float m_shadow_map_zoom{1.f};
         glm::vec2 m_shadow_map_pan{0.f, 0.f};
-
-        FrameBuffer m_frame_buffer{};
-
         bool m_wireframe_mode{false};
-
-        // Debug output toggle
         bool m_enable_debug_output{true};
-
         bool m_show_metrics{true};
         bool m_show_scene_info{true};
         bool m_show_lighting_tool{true};
+
     };
-
-    template <typename T, typename... Args>
-    void Renderer::AddPrimitive(Args&&... args)
-    {
-        // Emplace a new instance of T directly by forwarding the constructor arguments
-        m_primitives.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-    }
-
-    template <typename T, typename... Args>
-    T* Renderer::AddAndGetPrimitive(Args&&... args)
-    {
-        static_assert(std::is_base_of_v<Primitive, T>, "T must derive from Primitive");
-
-        // Create and store the primitive
-        auto primitive = std::make_shared<T>(std::forward<Args>(args)...);
-        m_primitives.emplace_back(primitive);
-
-        // Return a pointer to the newly created primitive
-        return static_cast<T*>(primitive.get());
-    }
 }

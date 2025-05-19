@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-//Lib
+// Third-party
 #include <glm/glm.hpp>
 
 struct GLFWwindow;
@@ -51,7 +51,7 @@ namespace Hex
 		float m_zoom{};
 		float m_aspect_ratio{};
 	
-		float m_movement_speed{20.f};
+		float m_movement_speed{10.f};
 		float m_mouse_sensitivity{0.1f};
 
 		bool m_mouse_shown{true};

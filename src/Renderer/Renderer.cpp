@@ -1,29 +1,26 @@
 //Hex
-
-#include "Engine/Logger.h"
-#include "Engine/Application.h"
-#include "Engine/Console.h"
+#include "Core/Logger.h"
+#include "Core/Application.h"
+#include "Core/Console.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/ShaderManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Camera.h"
-
-//Hex Primitives
-#include "Renderer/Primitives/PrimitiveBase.h"
-#include "Renderer/Primitives/LineBatch.h"
-#include "Renderer/Primitives/SphereBatch.h"
-#include "Renderer/Primitives/CubeBatch.h"
-#include "Renderer/Primitives/ScreenQuad.h"
+#include "Renderer/Data/Material.h"
+#include "Renderer/Data/ScreenQuad.h"
 
 //Lib
 #define GLM_FORCE_SILENT_WARNINGS
 #define GLM_ENABLE_EXPERIMENTAL
+#include <iostream>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/string_cast.hpp>
+
+#include "Gameplay/EntityComponents.h"
 
 namespace Hex
 {
@@ -34,9 +31,9 @@ namespace Hex
 		}
 	}
 
-	Renderer::Renderer(const AppSpecification& application_spec, const std::shared_ptr<Console>& console): m_window(nullptr, GLFWwindowDeleter)
-	{
-		m_console = console;
+	Renderer::Renderer(entt::registry& registry, const AppSpecification& application_spec, const std::shared_ptr<Console>& console): m_window(nullptr, GLFWwindowDeleter)
+		, m_registry(registry), m_console(console)  {
+
 
 		Init(application_spec);
 	}
@@ -51,6 +48,14 @@ namespace Hex
 		InitOpenGLContext(app_spec);
 		LogRendererInfo();
 
+		// Create the UBO for RenderData (binding point 0)
+		glGenBuffers(1, &m_uboRenderData);
+		glBindBuffer(GL_UNIFORM_BUFFER, m_uboRenderData);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderData), nullptr, GL_DYNAMIC_DRAW);
+		// Make it available as binding point 0
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_uboRenderData);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
 		InitShadowMap();
 
 		m_camera.reset(new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f));
@@ -59,7 +64,6 @@ namespace Hex
 
 		m_screen_quad.reset(new ScreenQuad());
 
-		CreateTestScene();
 
 		SetupCallBacks();
 		
@@ -96,60 +100,6 @@ namespace Hex
 		glfwSwapBuffers(m_window.get());
 	}
 
-	void Renderer::CreateTestScene()
-	{
-		GetOrCreateCubeBatch()->AddCube(
-						glm::vec3(0.f, -26.5f, 0.f), // Position
-						50.f,														// Size
-						glm::vec3(1.f, 1.f, 1.f)                               //	 Color
-		);
-
-
-		m_light_pos = glm::vec3(5.f, 12.f, 5.f);
-
-		if (auto* line_batch = GetOrCreateLineBatch()) DrawOrigin(*line_batch);
-
-		constexpr int rows = 5;
-		constexpr int columns = 5;
-
-		for (int i = 0; i < rows * columns; i++)
-		{
-			constexpr float spacing = 4.f;
-
-			const int x = i % columns;      // Calculate x based on the remainder
-			const int z = i / columns;      // Calculate z based on the quotient
-
-			glm::vec3 random_colour = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
-
-			GetOrCreateLineBatch()->AddLine(
-				glm::vec3(1 + x * spacing, 0.f, 1 + z * spacing),
-				glm::vec3(1 + x * spacing, 10.f, 1 + z * spacing),
-				random_colour
-			);
-
-			GetOrCreateSphereBatch()->AddSphere(
-				glm::vec3(2 + x * spacing, 0.f, -2 + -z * spacing),
-				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
-				random_colour
-			);
-
-			GetOrCreateCubeBatch()->AddCube(
-				glm::vec3(-2 -1.f * x * spacing, 0.f,-2 -1.f * z * spacing),
-				0.2f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * (2.f - 0.2f),
-				random_colour
-			);
-		}
-	}
-
-	void Renderer::RemovePrimitive(Primitive *primitive)
-	{
-		std::erase_if(m_primitives, [primitive](const auto& p) { return p.get() == primitive; });
-
-		// If the removed primitive was the cached LineBatch, reset the cache
-		if (primitive == m_cached_line_batch) {
-			m_cached_line_batch = nullptr;
-		}
-	}
 
 	void Renderer::InitOpenGLContext(const AppSpecification& app_spec)
 	{
@@ -226,12 +176,7 @@ namespace Hex
 	void Renderer::SetupCallBacks()
 	{
 		glfwSetWindowUserPointer(m_window.get(), this);
-		
-		//glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message,
-		//	[[maybe_unused]] const void* user_param) {
-		//	std::cerr << "OpenGL Debug Message: " << message << '\n';
-		//	}, nullptr
-		//);
+
 
 		glfwSetCursorPosCallback(m_window.get(), [](GLFWwindow* window, const double x_delta, const double y_delta)
 		{
@@ -260,22 +205,11 @@ namespace Hex
 			const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 			self->m_camera->ProcessMouseScroll(static_cast<float>(yoffset));
 		});
-
-		//glfwSetFramebufferSizeCallback(m_window.get(), [](GLFWwindow* window, const int width, const int height)
-		//{
-		//
-		//	const auto* self = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-		//
-		//
-		//	glViewport(0, 0, self->m_render_width, self->m_render_height);
-		//
-		//	self->m_camera->SetAspectRatio(static_cast<float>(self->m_render_width)/static_cast<float>(self->m_render_height));
-		//});
 	}
 
 	void Renderer::LogRendererInfo()
 	{
-		Log(LogLevel::Info, std::format("Running GLFW {}", reinterpret_cast<const char*>(glfwGetVersionString())));
+		Log(LogLevel::Info, std::format("Running GLFW {}", glfwGetVersionString()));
 		Log(LogLevel::Info, std::format("Running OpenGL {}", reinterpret_cast<const char*>(glGetString(GL_VERSION))));
 		Log(LogLevel::Info, std::format("Running GLSL {}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION))));
 		Log(LogLevel::Info, std::format("Using GPU: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER))));
@@ -331,11 +265,11 @@ namespace Hex
 			m_shadow_map.shadow_width, m_shadow_map.shadow_height, 0, GL_DEPTH_COMPONENT,
 			GL_FLOAT, nullptr);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// enable GLSL sampler2DShadow-style comparisons
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
 		constexpr float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
@@ -425,15 +359,16 @@ namespace Hex
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		glEnable(GL_DEPTH_TEST);
-
-		// **NV**: cull front faces when writing depth
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(1.0f, 2.0f);
 		glEnable(GL_CULL_FACE);
+		glDrawBuffer(GL_NONE);
 		glCullFace(GL_FRONT);
 
 		// Set up the light's view and projection matrices
 		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
 		m_shadow_map.light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_shadow_map.light_projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 5.0f, 100.0f);
+		m_shadow_map.light_projection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 5.0f, 100.0f);
 
 		auto shadow_shader = ShaderManager::GetOrCreateShader(
 			RESOURCES_PATH "shaders/shadow.vert",
@@ -443,21 +378,31 @@ namespace Hex
 		shadow_shader->SetUniformMat4("light_view", m_shadow_map.light_view);
 		shadow_shader->SetUniformMat4("light_projection", m_shadow_map.light_projection);
 
-		for (const auto primitive : m_primitives)
+		// Draw all MeshComponents
+		auto meshView = m_registry.view<TransformComponent, MeshComponent>();
+		for (auto e : meshView)
 		{
-			if(primitive.get() == m_cached_line_batch) continue;
+			const auto &tc = m_registry.get<TransformComponent>(e);
+			const auto &mc = m_registry.get<MeshComponent>(e);
 
-			if (primitive->ShouldCullBackFaces()) {
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_BACK);
-			}
+			shadow_shader->SetUniformMat4("model", tc.GetMatrix());
+			mc.mesh->Draw();
+		}
 
-			primitive->Draw();
+		// Draw all ModelComponents
+		auto modelView = m_registry.view<TransformComponent, ModelComponent>();
+		for (auto e : modelView)
+		{
+			const auto &tc = m_registry.get<TransformComponent>(e);
+			const auto &mc = m_registry.get<ModelComponent>(e);
 
+			shadow_shader->SetUniformMat4("model", tc.GetMatrix());
+			mc.model->Draw();
 		}
 
 		glCullFace(GL_BACK);
 		glDisable(GL_CULL_FACE);
+		glDisable(GL_POLYGON_OFFSET_FILL);
 
 		Hex::Shader::Unbind();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
@@ -489,104 +434,42 @@ namespace Hex
 
 	void Renderer::RenderScene() const
 	{
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
+		glm::mat4 lightSpace = m_shadow_map.light_projection * m_shadow_map.light_view;
 
-		for (const auto primitive : m_primitives) {
-			primitive->SetRenderData(m_render_data);
+		for (auto e : m_registry.view<TransformComponent, MeshComponent>()) {
+			auto &tc = m_registry.get<TransformComponent>(e);
+			auto &mc = m_registry.get<MeshComponent>(e);
+			auto &mat= m_registry.get<MaterialComponent>(e);
 
-			if (primitive->ShouldCullBackFaces())
-			{
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_BACK);
-			}
+			mat.material->Apply();
 
-			const auto shader = primitive->GetShaderProgram();
-			if (!shader)
-			{
-				Log(LogLevel::Error, "Failed to get shader program");
-				continue;
-			}
-			shader->Bind();
+			glActiveTexture(GL_TEXTURE4);
+			glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
+			mat.material->shader->SetUniformMat4("model", tc.GetMatrix());
+			mat.material->shader->SetUniformMat4("light_space_matrix", lightSpace);
+			mat.material->shader->SetUniform1i("should_shade", 1);
+			mat.material->shader->SetUniform1i("shadow_map", 4);
 
-			if(primitive.get() != m_cached_line_batch)
-			{
-				shader->SetUniform1i("shadow_map", 0);
-				shader->SetUniform1i("should_shade", primitive.get()->ShouldShade());
-				shader->SetUniform2f("MapSize",
-					float(m_shadow_map.shadow_width),
-					float(m_shadow_map.shadow_height));
-				shader->SetUniformMat4("light_space_matrix", m_shadow_map.light_projection * m_shadow_map.light_view);
-			}
-
-			primitive->Draw();
-			Hex::Shader::Unbind();
-
-			glDisable(GL_CULL_FACE);
+			mc.mesh->Draw();
 		}
 
-		Hex::Shader::Unbind();
-	}
+		for (auto e : m_registry.view<TransformComponent, ModelComponent>()) {
+			auto &tc = m_registry.get<TransformComponent>(e);
+			auto &mc = m_registry.get<ModelComponent>(e);
+			auto &mat= m_registry.get<MaterialComponent>(e);
 
-	LineBatch* Renderer::GetOrCreateLineBatch()
-	{
-		// If the LineBatch is already cached, return it
-		if (m_cached_line_batch) {
-			return m_cached_line_batch;
+			mat.material->Apply();
+
+			glActiveTexture(GL_TEXTURE4);
+			glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
+			mat.material->shader->SetUniformMat4("model", tc.GetMatrix());
+			mat.material->shader->SetUniformMat4("light_space_matrix", lightSpace);
+			mat.material->shader->SetUniform1i("should_shade", 1);
+			mat.material->shader->SetUniform1i("shadow_map", 4);
+
+			mc.model->Draw();
 		}
 
-		// If not found in the cache, create a new LineBatch
-		m_cached_line_batch = AddAndGetPrimitive<LineBatch>();
-
-		const auto line_shader = ShaderManager::GetOrCreateShader(
-			RESOURCES_PATH "shaders/line.vert",
-			RESOURCES_PATH "shaders/line.frag"
-		);
-
-		m_cached_line_batch->SetShaderProgram(line_shader);
-
-		return m_cached_line_batch;
-	}
-
-	SphereBatch * Renderer::GetOrCreateSphereBatch()
-	{
-		// If the LineBatch is already cached, return it
-		if (m_cached_sphere_batch) {
-			return m_cached_sphere_batch;
-		}
-
-		// If not found in the cache, create a new SphereBatch
-		m_cached_sphere_batch = AddAndGetPrimitive<SphereBatch>();
-
-		const auto sphere_shader = ShaderManager::GetOrCreateShader(
-			RESOURCES_PATH "shaders/debug.vert",
-			RESOURCES_PATH "shaders/debug.frag"
-		);
-
-		m_cached_sphere_batch->SetShaderProgram(sphere_shader);
-
-		return m_cached_sphere_batch;
-	}
-
-	CubeBatch* Renderer::GetOrCreateCubeBatch()
-	{
-		// If the CubeBatch is already cached, return it
-		if (m_cached_cube_batch) {
-			return m_cached_cube_batch;
-		}
-
-		// If not found in the cache, create a new CubeBatch
-		m_cached_cube_batch = AddAndGetPrimitive<CubeBatch>();
-
-		// Assign a shader program to the CubeBatch
-		const auto cube_shader = ShaderManager::GetOrCreateShader(
-			RESOURCES_PATH "shaders/debug.vert",
-			RESOURCES_PATH "shaders/debug.frag"
-		);
-
-		m_cached_cube_batch->SetShaderProgram(cube_shader);
-
-		return m_cached_cube_batch;
 	}
 
 	GLFWwindow* Renderer::GetWindow() const
@@ -623,6 +506,10 @@ namespace Hex
 
 		// Ensure any other padding or alignment-specific fields are properly set (if applicable)
 		// Example: If additional padding is needed for future fields, initialize them here.
+
+		glBindBuffer(GL_UNIFORM_BUFFER, m_uboRenderData);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 
 	void Renderer::SetLightPos(const glm::vec3 &pos)
@@ -743,31 +630,6 @@ namespace Hex
 				// Display Primitives Information
 				if (ImGui::CollapsingHeader("Primitives Information"))
 				{
-					int primitiveIndex = 0;
-					for (const auto& primitive : m_primitives)
-					{
-						ImGui::Text("Primitive #%d:", primitiveIndex++);
-						if (dynamic_cast<LineBatch*>(primitive.get())) {
-							ImGui::Text("  Type: LineBatch");
-						} else if (dynamic_cast<SphereBatch*>(primitive.get())) {
-							ImGui::Text("  Type: SphereBatch");
-						} else if (dynamic_cast<CubeBatch*>(primitive.get())) {
-							ImGui::Text("  Type: CubeBatch");
-						} else {
-							ImGui::Text("  Type: Unknown");
-						}
-
-						// Display and toggle shading state for this primitive
-						bool isShaded = primitive->ShouldShade();
-						std::string buttonLabel = std::string("Toggle Shading##") + std::to_string(primitiveIndex); // Unique label
-
-						if (ImGui::Button(buttonLabel.c_str())) {
-							primitive->SetShouldShade(!isShaded); // Toggle shading state
-						}
-						ImGui::Text("  Shading: %s", isShaded ? "Enabled" : "Disabled");
-
-						ImGui::Separator();
-					}
 				}
 			}
 			ImGui::End();
@@ -848,25 +710,5 @@ namespace Hex
 					 ImVec2(static_cast<float>(m_frame_buffer.render_width), static_cast<float>(m_frame_buffer.render_height)),
 					 ImVec2(0, 1), ImVec2(1, 0));
 		ImGui::End();
-	}
-
-	void Renderer::DrawOrigin(LineBatch& line_batch)
-	{
-		constexpr int spacing = 10;
-		constexpr int dist = 10;
-		constexpr float line_width = 0.2f;
-
-		line_batch.AddLine({0, -dist * spacing, 0}, {0, dist * spacing, 0}, {0.f, 1.f, 0.f});
-		line_batch.AddLine({-dist * spacing, 0, 0}, {dist * spacing, 0, 0}, {1.f, 0.f, 0.f});
-		line_batch.AddLine({0, 0, -dist * spacing}, {0, 0, dist * spacing}, {0.f, 0.f, 1.f});
-
-		for(int i = -dist - 1; i < dist + 1; i++)
-		{
-			if(i == 0) continue;
-
-			line_batch.AddLine({i * spacing, 0, -line_width}, {i * spacing, 0, line_width}, {1.f, 0.f, 0.f});
-			line_batch.AddLine({-line_width, 0, i * spacing}, {line_width, 0, i * spacing}, {0.f, 0.f, 1.f});
-			line_batch.AddLine({0, i * spacing, -line_width}, {0, i * spacing, line_width}, {0.f, 1.f, 0.f});
-		}
 	}
 }

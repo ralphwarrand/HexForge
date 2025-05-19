@@ -1,6 +1,6 @@
 ﻿//Hex
 #include "Renderer/Camera.h"
-#include "Engine/Logger.h"
+#include "Core/Logger.h"
 
 //Lib
 #include <GLFW/glfw3.h>

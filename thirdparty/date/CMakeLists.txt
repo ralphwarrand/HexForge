@@ -15,7 +15,7 @@
 
 #]===================================================================]
 
-cmake_minimum_required( VERSION 3.7 )
+cmake_minimum_required( VERSION 3.20 )
 
 project( date VERSION 3.0.3 )
 set(ABI_VERSION 3) # used as SOVERSION, increment when ABI changes
