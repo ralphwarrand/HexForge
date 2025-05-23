@@ -66,7 +66,12 @@ namespace Hex
     }
 
     void Shader::SetUniformMat4(const std::string& name, const glm::mat4& matrix) {
-        glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, &matrix[0][0]);
+        GLint loc = GetUniformLocation(name);
+        if (loc < 0) {
+            Log(LogLevel::Warning, "Tried to set missing uniform " + name);
+            return;
+        }
+        glUniformMatrix4fv(loc, 1, GL_FALSE, &matrix[0][0]);
     }
 
     // Private utility functions

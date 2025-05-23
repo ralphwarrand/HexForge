@@ -38,20 +38,22 @@ namespace Hex
 		[[nodiscard]] glm::vec3 GetUpVector() const;
 		[[nodiscard]] glm::vec3 GetPosition() const;
 	private:
+		// Matrices
 		glm::mat4 m_view_matrix{};
 		glm::mat4 m_projection_matrix{};
-		
+
+		// Camera vectors
 		glm::vec3 m_position{};
 		glm::vec3 m_forward{};
 		glm::vec3 m_up{};
 		glm::vec3 m_right{};
-	
+
 		float m_yaw{};
 		float m_pitch{};
 		float m_zoom{};
 		float m_aspect_ratio{};
 	
-		float m_movement_speed{10.f};
+		float m_movement_speed{5.f};
 		float m_mouse_sensitivity{0.1f};
 
 		bool m_mouse_shown{true};

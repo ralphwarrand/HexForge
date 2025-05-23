@@ -1,28 +1,7 @@
 #include "pch.h"
 
 //Hex
-#include "Core/Logger.h"
-#include "Core/Application.h"
-#include "Core/Console.h"
 #include "Renderer/Renderer.h"
-#include "Renderer/ShaderManager.h"
-#include "Renderer/Shader.h"
-#include "Renderer/Camera.h"
-#include "Renderer/Data/Material.h"
-#include "Renderer/Data/ScreenQuad.h"
-
-//Lib
-#define GLM_FORCE_SILENT_WARNINGS
-#define GLM_ENABLE_EXPERIMENTAL
-#include <iostream>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <glm/gtc/random.hpp>
-#include <glm/gtx/string_cast.hpp>
-
-#include "Gameplay/EntityComponents.h"
 
 namespace Hex
 {
@@ -60,7 +39,7 @@ namespace Hex
 
 		InitShadowMap();
 
-		m_camera.reset(new Camera({-20.f, 20.f, 20.f}, -45.0f, -20.f));
+		m_camera.reset(new Camera({-10.f, 10.f, 10.f}, -45.0f, -20.f));
 		InitFrameBuffer(app_spec.width, app_spec.height);
 
 
@@ -89,7 +68,8 @@ namespace Hex
 
 		BindFrameBuffer();								// Switch to primary frame buffer
 		if(!m_wireframe_mode) RenderFullScreenQuad();	// Second pass: Render sky background
-		RenderScene();									// Third pass: Render scene with shadows
+		//RenderScene();									// Third pass: Render scene with shadows
+		RenderSceneBatched();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind frame buffer
 
@@ -172,6 +152,8 @@ namespace Hex
 		{
 			glfwSwapInterval(0); // Disable VSync
 		}
+
+		Texture::InitDefaults();
 
 	}
 
@@ -357,63 +339,113 @@ namespace Hex
 
 	void Renderer::RenderShadowMap()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map.fbo);
+	    glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map.fbo);
+	    glViewport(0, 0, m_shadow_map.shadow_width, m_shadow_map.shadow_height);
+	    glClear(GL_DEPTH_BUFFER_BIT);
 
-		glViewport(0, 0, m_shadow_map.shadow_width, m_shadow_map.shadow_height);
-		glClear(GL_DEPTH_BUFFER_BIT);
+	    glEnable(GL_DEPTH_TEST);
+	    glEnable(GL_POLYGON_OFFSET_FILL);
+	    glPolygonOffset(2.0f, 4.0f);
+	    glCullFace(GL_FRONT);
+	    glEnable(GL_CULL_FACE);
+	    glDrawBuffer(GL_NONE);
 
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(1.0f, 2.0f);
-		glEnable(GL_CULL_FACE);
-		glDrawBuffer(GL_NONE);
-		glCullFace(GL_FRONT);
+		// Compute the “scene box” we want to shadow:
+		const float R = 10.0f;  // adjust to cover your scene
+		glm::vec3 center = glm::vec3(0.0f);
 
-		// Set up the light's view and projection matrices
-		glm::vec3 light_target = glm::vec3(0.0f, 0.0f, 0.0f); // Target the origin
-		m_shadow_map.light_view = glm::lookAt(m_light_pos, light_target, glm::vec3(0.0f, 1.0f, 0.0f));
-		m_shadow_map.light_projection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 5.0f, 100.0f);
 
-		auto shadow_shader = ShaderManager::GetOrCreateShader(
-			RESOURCES_PATH "shaders/shadow.vert",
-			RESOURCES_PATH "shaders/shadow.frag"
-		);
-		shadow_shader->Bind();
-		shadow_shader->SetUniformMat4("light_view", m_shadow_map.light_view);
-		shadow_shader->SetUniformMat4("light_projection", m_shadow_map.light_projection);
+		// Get your light’s direction (unit vector).
+		glm::vec3 dir = glm::normalize(m_light_dir);
 
-		// Draw all MeshComponents
-		auto meshView = m_registry.view<TransformComponent, MeshComponent>();
-		for (auto e : meshView)
-		{
-			const auto &tc = m_registry.get<TransformComponent>(e);
-			const auto &mc = m_registry.get<MeshComponent>(e);
+		// Place the shadow‐camera “behind” the box along -dir at distance R.
+		glm::vec3 shadowCamPos = center - dir * R;
 
-			shadow_shader->SetUniformMat4("model", tc.GetMatrix());
-			mc.mesh->Draw();
-		}
+		// Build view/proj
+		m_shadow_map.light_view       = glm::lookAt(shadowCamPos, center, {0,1,0});
+		m_shadow_map.light_projection = glm::ortho(-R, R, R, -R, 0.1f, 2.0f*R);
 
-		// Draw all ModelComponents
-		auto modelView = m_registry.view<TransformComponent, ModelComponent>();
-		for (auto e : modelView)
-		{
-			const auto &tc = m_registry.get<TransformComponent>(e);
-			const auto &mc = m_registry.get<ModelComponent>(e);
+	    // bind shadow shader
+	    auto shadow_shader = ShaderManager::GetOrCreateShader(
+	        RESOURCES_PATH "shaders/shadow.vert",
+	        RESOURCES_PATH "shaders/shadow.frag"
+	    );
+	    shadow_shader->Bind();
+	    shadow_shader->SetUniformMat4("light_view",       m_shadow_map.light_view);
+	    shadow_shader->SetUniformMat4("light_projection", m_shadow_map.light_projection);
 
-			shadow_shader->SetUniformMat4("model", tc.GetMatrix());
-			mc.model->Draw();
-		}
+	    // --- gather all mesh+transform items ---
+	    struct Item { Mesh* mesh; glm::mat4 model; };
+	    std::vector<Item> items;
 
-		glCullFace(GL_BACK);
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_POLYGON_OFFSET_FILL);
+	    // individual MeshComponents
+	    for (auto e : m_registry.view<TransformComponent, MeshComponent>()) {
+	        auto &tc = m_registry.get<TransformComponent>(e);
+	        auto &mc = m_registry.get<MeshComponent>(e);
+	        items.push_back({ mc.mesh.get(), tc.GetMatrix() });
+	    }
+	    // sub‐meshes in ModelComponents
+	    for (auto e : m_registry.view<TransformComponent, ModelComponent>()) {
+	        auto &tc  = m_registry.get<TransformComponent>(e);
+	        auto &mdc = m_registry.get<ModelComponent>(e);
+	        for (auto &sub : mdc.model->GetMeshes())
+	            items.push_back({ sub.get(), tc.GetMatrix() });
+	    }
 
-		Hex::Shader::Unbind();
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
+	    if (items.empty()) {
+	        glCullFace(GL_BACK);
+	        glDisable(GL_CULL_FACE);
+	        glDisable(GL_POLYGON_OFFSET_FILL);
+	        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	        return;
+	    }
 
-		int width, height;
-		glfwGetFramebufferSize(m_window.get(), &width, &height);
-		glViewport(0, 0, width, height);
+	    // --- sort and draw instanced per mesh ---
+	    std::sort(items.begin(), items.end(),
+	              [](auto const &a, auto const &b){ return a.mesh < b.mesh; });
+
+	    size_t idx = 0;
+	    while (idx < items.size()) {
+	        Mesh* mesh = items[idx].mesh;
+
+	        // collect all models for this mesh
+	        std::vector<glm::mat4> models;
+	        size_t j = idx;
+	        for (; j < items.size() && items[j].mesh == mesh; ++j)
+	            models.push_back(items[j].model);
+
+	        // upload per-instance buffer
+	        glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
+	        glBufferData(GL_ARRAY_BUFFER,
+	                     models.size() * sizeof(glm::mat4),
+	                     models.data(),
+	                     GL_DYNAMIC_DRAW);
+	        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	        // single instanced draw
+	        glBindVertexArray(mesh->VAO);
+	        glDrawElementsInstanced(
+	            GL_TRIANGLES,
+	            mesh->indexCount,
+	            GL_UNSIGNED_INT,
+	            nullptr,
+	            static_cast<GLsizei>(models.size())
+	        );
+	        glBindVertexArray(0);
+
+	        idx = j;
+	    }
+
+	    Shader::Unbind();
+	    glCullFace(GL_BACK);
+	    glDisable(GL_CULL_FACE);
+	    glDisable(GL_POLYGON_OFFSET_FILL);
+	    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	    // restore viewport to window
+	    int w, h;
+	    glfwGetFramebufferSize(m_window.get(), &w, &h);
+	    glViewport(0, 0, w, h);
 	}
 
 	void Renderer::RenderFullScreenQuad() const
@@ -426,6 +458,18 @@ namespace Hex
 			RESOURCES_PATH "shaders/gradient.frag"
 		);
 		gradientShader->Bind();
+
+		// upload inverse matrices
+		glm::mat4 invProj = glm::inverse(m_camera->GetProjectionMatrix());
+		glm::mat4 invView = glm::inverse(m_camera->GetViewMatrix());
+		gradientShader->SetUniformMat4("inverseProjection", invProj);
+		gradientShader->SetUniformMat4("invView", invView);
+
+		// upload sun dir & colors
+		gradientShader->SetUniformVec3("light_dir", glm::normalize(m_light_dir));
+		gradientShader->SetUniformVec3("topColor",  glm::vec3(0.53f,0.81f,0.92f));
+		gradientShader->SetUniformVec3("bottomColor", glm::vec3(0.87f,0.94f,1.0f));
+		gradientShader->SetUniform1f("mieG", 0.8f);
 
 		glBindVertexArray(m_screen_quad.get()->vao);
 		glDrawArrays(GL_TRIANGLES, 0, 6); // Draw the quad as two triangles
@@ -476,6 +520,102 @@ namespace Hex
 
 	}
 
+	void Renderer::RenderSceneBatched() const {
+		glm::mat4 lightSpace = m_shadow_map.light_projection * m_shadow_map.light_view;
+
+		struct Item { Material* mat; Mesh* mesh; glm::mat4 model; };
+		std::vector<Item> items;
+
+		// Gather MeshComponents
+		{
+			auto view = m_registry.view<TransformComponent, MeshComponent, MaterialComponent>();
+			items.reserve(std::distance(view.begin(), view.end()));
+			for (auto e : view) {
+				auto& tc  = m_registry.get<TransformComponent>(e);
+				auto& mc  = m_registry.get<MeshComponent>(e);
+				auto& mat = m_registry.get<MaterialComponent>(e);
+				items.push_back({ mat.material.get(),
+								  mc.mesh.get(),
+								  tc.GetMatrix() });
+			}
+		}
+
+		// Gather ModelComponents (each model may have multiple sub-meshes)
+		{
+			auto view = m_registry.view<TransformComponent, ModelComponent, MaterialComponent>();
+			for (auto e : view) {
+				auto& tc   = m_registry.get<TransformComponent>(e);
+				auto& mdc  = m_registry.get<ModelComponent>(e);
+				auto& mat  = m_registry.get<MaterialComponent>(e);
+				for (auto& submesh : mdc.model->GetMeshes()) {
+					items.push_back({ mat.material.get(),
+									  submesh.get(),
+									  tc.GetMatrix() });
+				}
+			}
+		}
+
+		if (items.empty()) {
+			// nothing to draw
+			return;
+		}
+
+		// Sort by material, then mesh
+		std::sort(items.begin(), items.end(), [](auto const &a, auto const &b) {
+			if (a.mat  != b.mat)  return a.mat  < b.mat;
+			return   a.mesh < b.mesh;
+		});
+
+
+		size_t idx = 0;
+		while (idx < items.size()) {
+			auto mat  = items[idx].mat;
+			auto mesh = items[idx].mesh;
+
+			// collect per-instance matrices
+			std::vector<glm::mat4> models;
+			size_t j = idx;
+			for (; j < items.size() && items[j].mat == mat && items[j].mesh == mesh; ++j)
+				models.push_back(items[j].model);
+			GLsizei instanceCount = GLsizei(models.size());
+
+			// upload instance‐models
+			glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
+			glBufferData(GL_ARRAY_BUFFER,
+						 instanceCount * sizeof(glm::mat4),
+						 models.data(),
+						 GL_DYNAMIC_DRAW);
+
+			// set up material + PBR maps
+			mat->Apply();
+
+			// set per‐draw uniforms
+			auto s = mat->shader.get();
+			s->SetUniformMat4("light_space_matrix", lightSpace);
+			s->SetUniform1i("should_shade",        1);
+
+			// bind shadow map
+			glActiveTexture(GL_TEXTURE5);
+			glBindTexture(GL_TEXTURE_2D, m_shadow_map.texture);
+			s->SetUniform1i("shadow_map", 5);
+
+			// draw instanced
+			glBindVertexArray(mesh->VAO);
+			glDrawElementsInstanced(
+				GL_TRIANGLES,
+				mesh->indexCount,
+				GL_UNSIGNED_INT,
+				nullptr,
+				instanceCount
+			);
+			glBindVertexArray(0);
+
+			idx = j;
+		}
+
+		Shader::Unbind();
+	}
+
 	GLFWwindow* Renderer::GetWindow() const
 	{
 		return m_window.get();
@@ -502,24 +642,26 @@ namespace Hex
 		// Padding explicitly set to 0 (required for std140 uniform alignment)
 		m_render_data.padding1 = 0.0f;
 
+		// Update the directional‐light direction and color
+		m_render_data.light_dir   = glm::normalize(m_light_dir);
+		m_render_data.padding2    = 0.0f;             // explicit zero for std140 padding
+		m_render_data.light_color = m_light_color;
+		m_render_data.padding3    = 0.0f;
+
 		// Update wireframe mode (bool is treated as 4-byte int in std140)
 		m_render_data.wireframe = m_wireframe_mode;
 
-		// Update light position
-		m_render_data.light_pos = m_light_pos;
-
-		// Ensure any other padding or alignment-specific fields are properly set (if applicable)
-		// Example: If additional padding is needed for future fields, initialize them here.
+		m_render_data.padding4[0]  = m_render_data.padding4[1] = m_render_data.padding4[2] = 0.0f;
 
 		glBindBuffer(GL_UNIFORM_BUFFER, m_uboRenderData);
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RenderData), &m_render_data);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 
-	void Renderer::SetLightPos(const glm::vec3 &pos)
+	void Renderer::SetLightDir(const glm::vec3 &dir)
 	{
-		m_light_pos = pos;
-		m_render_data.light_pos = pos;
+		m_light_dir = dir;
+		m_render_data.light_dir = dir;
 	}
 
 	void Renderer::StartImGuiFrame()
@@ -589,8 +731,6 @@ namespace Hex
 			ImGui::EndMainMenuBar();
 		}
 
-
-
 		// Other windows (metrics, scene info, etc.)
 		if (m_show_metrics)
 		{
@@ -649,12 +789,12 @@ namespace Hex
 				// Display static lighting information
 				ImGui::Text("Active Lights: %d", active_lights_count);
 				ImGui::Text("Selected Light: %d", selected_light_index);
-				ImGui::Text("Light Position:");
+				ImGui::Text("Light Direction:");
 
 				// Add interactive controls for editing the light position
-				if (ImGui::DragFloat3("LightPosition", &m_light_pos.x, 0.1f, -10000.0f, 10000.0f))
+				if (ImGui::DragFloat3("LightDirection", &m_light_dir.x, 0.1f, -1.0f, 1.0f))
 				{
-					SetLightPos(m_light_pos);
+					SetLightDir(m_light_dir);
 				}
 
 				ImGui::Separator();

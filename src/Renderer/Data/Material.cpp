@@ -4,32 +4,45 @@
 
 namespace Hex {
 
-    void Material::Apply() const
-    {
+    void Material::Apply() const {
         shader->Bind();
 
-        // Material flags
-        shader->SetUniform1i("hasAlbedoMap",    albedo_map  ? 1 : 0);
-        shader->SetUniform1i("hasNormalMap",    normal_map  ? 1 : 0);
+        // Feature flags
+        shader->SetUniform1i("hasAlbedoMap",    albedo_map    ? 1 : 0);
+        shader->SetUniform1i("hasNormalMap",    normal_map    ? 1 : 0);
         shader->SetUniform1i("hasRoughnessMap", roughness_map ? 1 : 0);
-        //shader->SetUniform1i("should_shade",    shouldShade ? 1 : 0);
+        shader->SetUniform1i("hasMetallicMap",  metallic_map  ? 1 : 0);
+        shader->SetUniform1i("hasAoMap",        ao_map        ? 1 : 0);
 
-        // Bind samplers
-        int unit = 0;
-        if (albedo_map) {
+        // Bind samplers 0..4
+        static const char* names[5] = {
+            "albedoMap","normalMap","roughnessMap","metallicMap","aoMap"
+          };
+        std::shared_ptr<Texture> texs[5] = {
+            albedo_map, normal_map,
+            roughness_map, metallic_map,
+            ao_map
+          };
+
+        for (int unit = 0; unit < 5; ++unit) {
+            // tell GLSL this sampler lives in texture unit `unit`
+            shader->SetUniform1i(names[unit], unit);
             glActiveTexture(GL_TEXTURE0 + unit);
-            albedo_map->Bind();
-            shader->SetUniform1i("albedoMap", unit++);
+            if (texs[unit]) {
+                texs[unit]->Bind(unit);
+            } else {
+                // if it’s the normal slot, bind default normal; otherwise bind white
+                if (unit == 1) Texture::BindDefaultNormal();
+                else          Texture::BindWhite();
+            }
         }
-        if (normal_map) {
-            glActiveTexture(GL_TEXTURE0 + unit);
-            normal_map->Bind();
-            shader->SetUniform1i("normalMap", unit++);
-        }
-        if (roughness_map) {
-            glActiveTexture(GL_TEXTURE0 + unit);
-            roughness_map->Bind();
-            shader->SetUniform1i("roughnessMap", unit++);
+
+        // Backface culling
+        if (cull_backfaces) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+        } else {
+            glDisable(GL_CULL_FACE);
         }
     }
 }

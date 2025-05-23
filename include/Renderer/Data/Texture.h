@@ -24,6 +24,10 @@ namespace Hex {
         // and target GL_TEXTURE_2D
         void Bind(GLuint unit = 0) const;
 
+        static void InitDefaults();
+        static void BindWhite();
+        static void BindDefaultNormal();
+
         // Unbinds any texture from that unit/target
         static void Unbind(GLuint unit = 0);
 

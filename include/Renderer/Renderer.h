@@ -55,11 +55,12 @@ namespace Hex
         // Rendering
         void RenderFullScreenQuad() const;
         void RenderScene() const;
+        void RenderSceneBatched() const;
         void RenderShadowMap();
 
         void UpdateRenderData();
 
-        void SetLightPos(const glm::vec3& pos);
+        void SetLightDir(const glm::vec3& dir);
 
         //ImGui
         static void StartImGuiFrame();
@@ -70,7 +71,7 @@ namespace Hex
         using GLFWwindowPtr = std::unique_ptr<GLFWwindow, void(*)(GLFWwindow*)>;
         GLFWwindowPtr m_window;
 
-        // Access to application console
+        // Access to the application console
         std::shared_ptr<Console> m_console{nullptr};
 
         // Scene information
@@ -86,7 +87,8 @@ namespace Hex
         GLuint m_uboRenderData = 0;
 
         //Lighting
-        glm::vec3 m_light_pos{20.f, 10.f, 20.f};
+        glm::vec3 m_light_dir{glm::normalize(glm::vec3(1.f, -1.f, -1.f))};
+        glm::vec3 m_light_color{1.0f, 0.95f, 0.95f};
 
         // Debug Settings
         float m_shadow_map_zoom{1.f};

@@ -28,19 +28,23 @@ namespace Hex {
 		}
 	};
 
-	struct MeshComponent {
+	struct MeshComponent
+	{
 		std::shared_ptr<Mesh> mesh;
 	};
 
-	struct ModelComponent {
+	struct ModelComponent
+	{
 		std::shared_ptr<Model> model;
 	};
 
-	struct MaterialComponent {
+	struct MaterialComponent
+	{
 		std::shared_ptr<Material> material;
 	};
 
-	struct RotatingComponent {
+	struct RotatingComponent
+	{
 		float rate{10.f};
 		glm::vec3 axis{0.f, 1.f, 0.f};
 	};
