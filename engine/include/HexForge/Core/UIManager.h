@@ -21,6 +21,8 @@ namespace Hex
         void EndFrame();
         void RenderUI(float deltaTime);
 
+        bool IsViewportHovered() const { return m_isViewportHovered; }
+
     private:
         void SetStyle();
 
@@ -44,7 +46,7 @@ namespace Hex
         bool m_showLightingTool = true;
         bool m_showPhysicsControls = true;
 
-
+        bool m_isViewportHovered = false;
         ImVec2 m_viewportSize = { 0, 0 };
 
         glm::vec3 m_light_dir = glm::vec3(0.5f, -1.f, 0.5f);

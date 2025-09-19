@@ -79,7 +79,7 @@ namespace Hex
                 const auto& component = view.template get<Component>(entity);
 
                 // Log the entity and its component
-                Log(Hex::LogLevel::Debug, std::format("Entity: {} Component: {}", static_cast<int>(entity), component));
+                Log(Hex::LogLevel::Debug, std::printf("Entity: %i Component: {}", static_cast<int>(entity)));
             }
         }
 

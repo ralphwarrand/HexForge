@@ -14,7 +14,7 @@ void Hex::Logger::SetLogFile(const std::string &filename)
         auto now = std::chrono::system_clock::now();
         auto local_time = 0; //TODO: FIX time
         ofs_ <<                 "\n===============================\n";
-        ofs_ << fmt::format("[{}] [INFO] Log session started\n", local_time);
+        ofs_ << "[{}] [INFO] Log session started\n";
         ofs_ <<                   "===============================\n";
         ofs_.flush(); // Ensure header is written immediately
     }
@@ -30,7 +30,7 @@ void Hex::Logger::Log(const LogLevel level, const std::string &msg)
      auto local_time = 0; //TODO: FIX time
 
 
-    std::string log_entry = fmt::format("[{}] ", local_time);
+    std::string log_entry = "[{}] ";
 
     switch (level) {
         case LogLevel::Debug: log_entry += "[DEBUG] "; break;
