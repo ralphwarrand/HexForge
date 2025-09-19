@@ -7,7 +7,6 @@
 #include <memory>
 #include <functional>
 #include <iostream>
-#include <fmt/format.h>
 
 // ----------------- Third-party libs
 // Windowing and render context

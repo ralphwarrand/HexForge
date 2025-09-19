@@ -218,33 +218,24 @@ namespace Hex
 
     void UIManager::ShowViewport()
     {
-
-        // Set the window padding to zero for a seamless look
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-
-        // Begin the Viewport window
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse);
 
-        // Get the current size of the viewport's content area
-        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+        // Check if the viewport window is currently hovered by the mouse
+        m_isViewportHovered = ImGui::IsWindowHovered();
 
-        // Get the texture ID from your renderer's framebuffer
-        // We will add the GetFrameBufferTexture() function in the next step
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
         uint32_t textureID = m_renderer.GetFrameBufferTexture();
 
-        // Draw the texture as an image, flipping the Y-axis for OpenGL
-        // OpenGL's texture origin is bottom-left, ImGui's is top-left
         ImGui::Image(
-            (void*)(intptr_t)textureID,   // The texture ID
-            viewportPanelSize,           // Size of the image
-            ImVec2(0, 1),                // UV coordinates for the top-left corner
-            ImVec2(1, 0)                 // UV coordinates for the bottom-right corner
+            (void*)(intptr_t)textureID,
+            viewportPanelSize,
+            ImVec2(0, 1),
+            ImVec2(1, 0)
         );
 
-        // Check if the viewport size has changed
         if (m_viewportSize.x != viewportPanelSize.x || m_viewportSize.y != viewportPanelSize.y)
         {
-            // If it has, update our stored size and tell the renderer to resize its framebuffer
             m_viewportSize = { viewportPanelSize.x, viewportPanelSize.y };
             m_renderer.ResizeFrameBuffer(viewportPanelSize.x, viewportPanelSize.y);
         }

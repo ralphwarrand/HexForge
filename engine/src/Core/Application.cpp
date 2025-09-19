@@ -34,18 +34,32 @@ namespace Hex
 	void Application::SetGameplayMode(bool enabled)
 	{
 		m_gameplayMode = enabled;
+		ImGuiIO& io = ImGui::GetIO(); // Get ImGui's IO object
+
 		if (m_gameplayMode)
 		{
-			// ENTER Gameplay Mode
+			// --- ENTER Gameplay Mode ---
+			// 1. Tell GLFW to hide and lock the cursor. This enables raw mouse motion.
 			glfwSetInputMode(m_renderer->GetWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			m_renderer->GetCamera()->ResetMouse(); // Prevents camera jump on mode switch
+
+			// 2. IMPORTANT: Tell ImGui to stop processing mouse input.
+			// This prevents ImGui from trying to set the cursor icon, which solves the conflict.
+			io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+
+			// 3. Reset the camera's internal mouse state to prevent a sudden jump.
+			m_renderer->GetCamera()->ResetMouse();
 
 			m_renderer->RequestViewportFocus();
 		}
 		else
 		{
-			// ENTER UI Mode
+			// --- ENTER UI Mode ---
+			// 1. Tell GLFW to show and unlock the cursor.
 			glfwSetInputMode(m_renderer->GetWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+			// 2. IMPORTANT: Tell ImGui to resume processing mouse input.
+			// The '& ~' operation is a bitwise NOT that removes the flag.
+			io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
 		}
 	}
 
@@ -154,56 +168,73 @@ namespace Hex
 
 	void Application::Run()
 	{
-		float delta_time = 0.0f;
-		float last_frame = 0.0f;
+	    float delta_time = 0.0f;
+	    float last_frame = 0.0f;
 
-		while (m_running && !glfwWindowShouldClose(m_renderer->GetWindow()))
-		{
-			// Poll for any new window/input events FIRST
-			glfwPollEvents();
+	    while (m_running && !glfwWindowShouldClose(m_renderer->GetWindow()))
+	    {
+	        // Poll for any new window/input events FIRST
+	        glfwPollEvents();
 
-			// Calculate delta time
-			const float current_frame = static_cast<float>(glfwGetTime());
-			delta_time = current_frame - last_frame;
-			last_frame = current_frame;
+	        // Calculate delta time
+	        const float current_frame = static_cast<float>(glfwGetTime());
+	        delta_time = current_frame - last_frame;
+	        last_frame = current_frame;
 
-			m_ui_manager->BeginFrame();
-			m_ui_manager->RenderUI(delta_time);
+	        // Start the ImGui frame
+	        m_ui_manager->BeginFrame();
+	        m_ui_manager->RenderUI(delta_time);
 
-			ImGuiIO& io = ImGui::GetIO();
+	        // Get ImGui IO state AFTER rendering the UI
+	        ImGuiIO& io = ImGui::GetIO();
 
-			if (!io.WantCaptureKeyboard)
-			{
-				if (m_input_manager->IsKeyJustPressed(GLFW_KEY_TAB))
-				{
-					SetGameplayMode(!m_gameplayMode); // Toggle the mode
-				}
+	        // --- GLOBAL HOTKEYS ---
+	        // These should work no matter what ImGui window is focused.
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_ESCAPE))
+	        {
+	            m_running = false;
+	        }
 
-				if (m_input_manager->IsKeyJustPressed(GLFW_KEY_ESCAPE))
-				{
-					m_running = false;
-				}
-			}
-
-			if (m_gameplayMode)
-			{
-				m_renderer->GetCamera()->Update(delta_time, *m_input_manager);
-			}
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_TAB))
+	        {
+	            SetGameplayMode(!m_gameplayMode); // Toggle the mode
+	        }
 
 
-			m_physics_system->Tick(*m_entity_manager, delta_time, current_frame);
+	        // --- CONTEXT-SENSITIVE INPUT ---
+	        if (m_gameplayMode)
+	        {
+	            // In gameplay mode, the game has full input control.
+	            // We don't need to check ImGui's capture flags here because the cursor is disabled.
+	            m_renderer->GetCamera()->Update(delta_time, *m_input_manager);
+	        }
+	        else // We are in UI Mode
+	        {
+	            // In UI mode, we only process game actions (like picking) if ImGui isn't
+	            // using the mouse for its own widgets and the mouse is over the viewport.
+	            if (m_ui_manager->IsViewportHovered() && !io.WantCaptureMouse)
+	            {
+	                if (m_input_manager->IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
+	                {
+	                    ProcessMousePicking();
+	                }
+	            }
+	        }
 
-			// Render 3D world to framebuffer
-			m_renderer->RenderWorld(delta_time);
+	        // --- WORLD AND RENDER UPDATES ---
+	        m_physics_system->Tick(*m_entity_manager, delta_time, current_frame);
 
-			// Render UI
+	        // Render 3D world to framebuffer
+	        m_renderer->RenderWorld(delta_time);
 
-			m_ui_manager->EndFrame();
+	        // Finalize and render the UI
+	        m_ui_manager->EndFrame();
 
-			glfwSwapBuffers(m_renderer->GetWindow());
+	        // Swap buffers
+	        glfwSwapBuffers(m_renderer->GetWindow());
 
-			// This snapshots the input state for the NEXT frame.
-			m_input_manager->Update();
-		}
+	        // This snapshots the input state for the NEXT frame.
+	        m_input_manager->Update();
+	    }
 	}
 }

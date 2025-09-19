@@ -5,7 +5,6 @@
 #include <string>
 #include <mutex>
 #include <functional>
-#include <memory>
 
 namespace Hex
 {

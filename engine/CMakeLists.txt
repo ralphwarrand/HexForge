@@ -60,7 +60,6 @@ target_link_libraries(HexForgeEngine
 		# handled by the target_include_directories call above.
 		stb_image
 		stb_truetype
-		fmt-header-only
 		assimp
 )
 # Link CURL on Linux/Apple

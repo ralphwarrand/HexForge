@@ -75,21 +75,3 @@ FetchContent_Declare(
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(assimp)
-
-# --- Fmt (Formatting Library) - UPDATED -------------------------------------
-FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-        GIT_TAG 9.1.0
-)
-# By setting this option BEFORE MakeAvailable, we tell fmt to set itself up
-# as a header-only INTERFACE library, which is what we want.
-set(FMT_HEADER_ONLY ON CACHE BOOL "Use fmt as a header-only library" FORCE)
-FetchContent_MakeAvailable(fmt)
-
-# Create an alias for backward compatibility with the engine's CMakeLists.txt.
-# The 'IF(NOT TARGET ...)' guard prevents errors on re-configuration.
-if(NOT TARGET fmt-header-only)
-    add_library(fmt-header-only ALIAS fmt)
-endif()
-
