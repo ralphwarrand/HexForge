@@ -246,8 +246,8 @@ int main()
         ps.m_domain.min = { -6.0f, -1.5f, -4.0f };
         ps.m_domain.max = {  6.0f,  6.0f,  4.0f };
         ps.AutoTune(particle_radius, rest_density);
-        // --- PRO SOLVER: many small substeps, few iters (Macklin 2019) ---
-        ps.m_substeps               = 10;
+        // --- PRO SOLVER: substeps for CPU execution ---
+        ps.m_substeps               = 3;
         ps.m_solverIterations       = 2;
         // h = 4r gives ~30-40 SPH neighbours — the minimum for a well-conditioned Poly6 density
         // estimate (StabilityLimits.h). Anything near 2r (~6 neighbours) makes the density solve

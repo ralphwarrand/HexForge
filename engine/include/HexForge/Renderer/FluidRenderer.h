@@ -51,11 +51,11 @@ namespace Hex
         // Depth smoothing: each iteration is one separable H+V bilateral pass. depth_sigma is the
         // range (edge-stop) tolerance in view-space depth units — larger keeps more, smaller
         // preserves sharper silhouettes.
-        int   m_smooth_iters         = 4;
+        int   m_smooth_iters         = 1;
         float m_smooth_depth_sigma   = 1.0f;
 
         // Thickness smoothing — separable box blur passes; kills per-splat ridges in absorption.
-        int   m_thickness_smooth_iters = 3;
+        int   m_thickness_smooth_iters = 1;
         float m_thickness_scale        = 1.0f;
 
         // Surface shading.
@@ -65,7 +65,7 @@ namespace Hex
 
         // Screen-space reflection.
         bool  m_enable_ssr           = true;
-        int   m_ssr_steps            = 24;
+        int   m_ssr_steps            = 8;
         float m_ssr_max_distance     = 0.5f;    // fraction of view distance marched
 
         // Water body colour. tint = colour that survives absorption (so it's bluish); scatter is
