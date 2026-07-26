@@ -737,54 +737,54 @@ namespace Hex
                         if (tc.position.z < min_bound.z) { tc.position.z = min_bound.z; pc.velocity.z = std::abs(pc.velocity.z) * 0.1f; }
                         if (tc.position.z > max_bound.z) { tc.position.z = max_bound.z; pc.velocity.z = -std::abs(pc.velocity.z) * 0.1f; }
                     }
+                }
 
-                    // 3b. Particle-Particle Contact Resolution (Volume Preservation)
-                    const float min_dist = 2.0f * m_particleRadius;
-                    const float min_dist2 = min_dist * min_dist;
-                    const size_t num_p = m_particle_entities.size();
-                    float cell_size = min_dist * 1.2f;
-                    std::unordered_map<int64_t, std::vector<size_t>> grid;
-                    grid.reserve(num_p);
-                    for (size_t i = 0; i < num_p; ++i) {
-                        const auto& tc = registry.get<TransformComponent>(m_particle_entities[i]);
-                        int64_t cx = static_cast<int64_t>(std::floor(tc.position.x / cell_size));
-                        int64_t cy = static_cast<int64_t>(std::floor(tc.position.y / cell_size));
-                        int64_t cz = static_cast<int64_t>(std::floor(tc.position.z / cell_size));
-                        int64_t hash = (cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791);
-                        grid[hash].push_back(i);
-                    }
-                    for (size_t i = 0; i < num_p; ++i) {
-                        auto eA = m_particle_entities[i];
-                        auto& tcA = registry.get<TransformComponent>(eA);
-                        auto& pcA = registry.get<ParticleComponent>(eA);
-                        int64_t cx = static_cast<int64_t>(std::floor(tcA.position.x / cell_size));
-                        int64_t cy = static_cast<int64_t>(std::floor(tcA.position.y / cell_size));
-                        int64_t cz = static_cast<int64_t>(std::floor(tcA.position.z / cell_size));
+                // 3b. Particle-Particle Contact Resolution (Volume Preservation, run once per substep)
+                const float min_dist = 2.0f * m_particleRadius;
+                const float min_dist2 = min_dist * min_dist;
+                const size_t num_p = m_particle_entities.size();
+                float cell_size = min_dist * 1.2f;
+                std::unordered_map<int64_t, std::vector<size_t>> grid;
+                grid.reserve(num_p);
+                for (size_t i = 0; i < num_p; ++i) {
+                    const auto& tc = registry.get<TransformComponent>(m_particle_entities[i]);
+                    int64_t cx = static_cast<int64_t>(std::floor(tc.position.x / cell_size));
+                    int64_t cy = static_cast<int64_t>(std::floor(tc.position.y / cell_size));
+                    int64_t cz = static_cast<int64_t>(std::floor(tc.position.z / cell_size));
+                    int64_t hash = (cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791);
+                    grid[hash].push_back(i);
+                }
+                for (size_t i = 0; i < num_p; ++i) {
+                    auto eA = m_particle_entities[i];
+                    auto& tcA = registry.get<TransformComponent>(eA);
+                    auto& pcA = registry.get<ParticleComponent>(eA);
+                    int64_t cx = static_cast<int64_t>(std::floor(tcA.position.x / cell_size));
+                    int64_t cy = static_cast<int64_t>(std::floor(tcA.position.y / cell_size));
+                    int64_t cz = static_cast<int64_t>(std::floor(tcA.position.z / cell_size));
 
-                        for (int dx = -1; dx <= 1; ++dx)
-                        for (int dy = -1; dy <= 1; ++dy)
-                        for (int dz = -1; dz <= 1; ++dz) {
-                            int64_t hash = ((cx + dx) * 73856093) ^ ((cy + dy) * 19349663) ^ ((cz + dz) * 83492791);
-                            auto git = grid.find(hash);
-                            if (git == grid.end()) continue;
-                            for (size_t j : git->second) {
-                                if (j <= i) continue;
-                                auto eB = m_particle_entities[j];
-                                auto& tcB = registry.get<TransformComponent>(eB);
-                                auto& pcB = registry.get<ParticleComponent>(eB);
-                                glm::vec3 delta = tcA.position - tcB.position;
-                                float d2 = glm::dot(delta, delta);
-                                if (d2 > 0.0f && d2 < min_dist2) {
-                                    float d = std::sqrt(d2);
-                                    glm::vec3 n = delta / d;
-                                    float overlap = min_dist - d;
-                                    float wA = pcA.inverseMass;
-                                    float wB = pcB.inverseMass;
-                                    float wSum = wA + wB;
-                                    if (wSum > 1e-7f) {
-                                        if (wA > 0.0f) tcA.position += (wA / wSum) * overlap * 0.5f * n;
-                                        if (wB > 0.0f) tcB.position -= (wB / wSum) * overlap * 0.5f * n;
-                                    }
+                    for (int dx = -1; dx <= 1; ++dx)
+                    for (int dy = -1; dy <= 1; ++dy)
+                    for (int dz = -1; dz <= 1; ++dz) {
+                        int64_t hash = ((cx + dx) * 73856093) ^ ((cy + dy) * 19349663) ^ ((cz + dz) * 83492791);
+                        auto git = grid.find(hash);
+                        if (git == grid.end()) continue;
+                        for (size_t j : git->second) {
+                            if (j <= i) continue;
+                            auto eB = m_particle_entities[j];
+                            auto& tcB = registry.get<TransformComponent>(eB);
+                            auto& pcB = registry.get<ParticleComponent>(eB);
+                            glm::vec3 delta = tcA.position - tcB.position;
+                            float d2 = glm::dot(delta, delta);
+                            if (d2 > 0.0f && d2 < min_dist2) {
+                                float d = std::sqrt(d2);
+                                glm::vec3 n = delta / d;
+                                float overlap = std::min(min_dist - d, m_particleRadius * 0.2f);
+                                float wA = pcA.inverseMass;
+                                float wB = pcB.inverseMass;
+                                float wSum = wA + wB;
+                                if (wSum > 1e-7f) {
+                                    if (wA > 0.0f) tcA.position += (wA / wSum) * overlap * 0.5f * n;
+                                    if (wB > 0.0f) tcB.position -= (wB / wSum) * overlap * 0.5f * n;
                                 }
                             }
                         }
@@ -852,12 +852,17 @@ namespace Hex
                     }
                 }
 
-                // 5. Update Particle Velocities
+                // 5. Update Particle Velocities & CFL Speed Clamp
+                const float max_speed = (m_maxParticleSpeed > 0.0f) ? m_maxParticleSpeed : 4.0f;
                 for (auto entity : m_particle_entities) {
                     auto& tc = registry.get<TransformComponent>(entity);
                     auto& pc = registry.get<ParticleComponent>(entity);
                     if (pc.inverseMass == 0.0f) continue;
                     pc.velocity = (tc.position - pc.predictedPosition) / sub_dt;
+                    float speed = glm::length(pc.velocity);
+                    if (speed > max_speed) {
+                        pc.velocity = (pc.velocity / speed) * max_speed;
+                    }
                     pc.velocity *= std::pow(m_globalDamping, sub_dt);
                     pc.predictedPosition = tc.position;
                 }

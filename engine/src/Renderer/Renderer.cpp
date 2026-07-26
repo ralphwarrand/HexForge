@@ -435,7 +435,6 @@ namespace Hex
 #if defined(__linux__) || defined(__gnu_linux__)
 		// Force Linux Optimus/PRIME to use Dedicated GPU (NVIDIA / AMD)
 		::setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 0);
-		::setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 0);
 		::setenv("DRI_PRIME", "1", 0);
 #endif
 
@@ -453,8 +452,7 @@ namespace Hex
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		//TODO: Remove from release build?
-		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_FALSE);
 
 		if(app_spec.fullscreen)
 		{
