@@ -1,19 +1,27 @@
 #version 420
 
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 color;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec3 tangent;
+// per-vertex attributes
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec2 aTexCoord;
+
+// per-instance model matrix (locations 3–6)
+layout(location = 3) in mat4 instanceModel;
+layout(location = 7) in vec4 aTangent;  // xyz = tangent, w = bitangent sign (+1 or –1)
 
 layout(std140, binding = 0) uniform RenderData {
-    mat4 view;         // 64 bytes
-    mat4 projection;   // 64 bytes
-    vec3 view_pos;     // 12 bytes
-    float padding1;    // 4 bytes (to align light_pos)
-    vec3 light_pos;    // 12 bytes
-    float padding2;    // 4 bytes (to align wireframe)
-    bool wireframe;    // 4 bytes
-    float padding3[3]; // 12 bytes (to align block to 16 bytes)
+    mat4 view;
+    mat4 projection;
+    vec3 view_pos;
+    float _pad1;
+
+    vec3 light_dir;     // unit vector pointing *toward* scene
+    float _pad2;
+    vec3 light_color;   // RGB intensity
+    float _pad3;
+
+    int  wireframe;
+    float _pad4[3];
 };
 
 out vec3 fragColor;
@@ -24,9 +32,9 @@ void main()
 {
 
     mat4 model = mat4(1.f);
-    fragColor = color;
-    fragPosition = vec3(view * model * vec4(position, 1.0));
+    fragColor = vec3(1.f,0.f,1.f);
+    fragPosition = vec3(view * model * vec4(aPosition, 1.0));
 
 
-    gl_Position = projection * view * model * vec4(position, 1.0);
+    gl_Position = projection * view * model * vec4(aPosition, 1.0);
 }

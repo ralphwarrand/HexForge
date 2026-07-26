@@ -1,6 +1,6 @@
-﻿// Hex
+// Hex
 #include "HexForge/pch.h"
-#include "Renderer/Data/Material.h"
+#include "HexForge/Renderer/Data/Material.h"
 
 namespace Hex
 {

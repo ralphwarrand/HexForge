@@ -15,8 +15,10 @@
 #include "HexForge/Renderer/Data/Mesh.h"
 #include "HexForge/Renderer/Data/Material.h"
 #include "HexForge/Renderer/Data/Model.h"
+#include "HexForge/Physics/PhysicsMaterial.h"
 
-namespace Hex {
+namespace Hex
+{
 	struct TransformComponent
 	{
 		glm::vec3 position{0.0f};
@@ -64,43 +66,65 @@ namespace Hex {
 	};
 
 	// A constraint to maintain distance between two particles
-	struct DistanceConstraint {
-		entt::entity p1;
-		entt::entity p2;
-		float restLength;
-		float compliance; // Inverse of stiffness. 0.0 = infinitely stiff.
-		float lambda;     // Accumulated Lagrange multiplier.
-
-		DistanceConstraint(entt::entity p1, entt::entity p2, float restLength, float compliance)
-	   : p1(p1), p2(p2), restLength(restLength), compliance(compliance), lambda(0.0f) {}
+	struct DistanceConstraintComponent
+	{
+		entt::entity entityA;
+		entt::entity entityB;
+		float restDistance;
 	};
 
-	// A constraint to maintain the volume of a tetrahedron
-	struct VolumeConstraint {
-		entt::entity p1, p2, p3, p4;
-		float restVolume;
-		float compliance; // Compliance for volume preservation.
-		float lambda;     // Accumulated Lagrange multiplier.
-
-		VolumeConstraint(entt::entity p1, entt::entity p2, entt::entity p3, entt::entity p4, float restVolume, float compliance)
-	   : p1(p1), p2(p2), p3(p3), p4(p4), restVolume(restVolume), compliance(compliance), lambda(0.0f) {}
+	struct FluidComponent
+	{
+		float density = 0.0f;
 	};
 
-	// An entity that holds a set of constraints for a deformable body
-	struct DeformableBodyComponent {
-		std::vector<DistanceConstraint> distanceConstraints;
-		std::vector<VolumeConstraint> volumeConstraints;
+	// Per-particle physical material. The PhysicsSystem deduplicates these at upload time —
+	// two particles whose PhysicsMaterial values compare bitwise-equal share a material slot
+	// on the GPU, so the small AoS table stays cache-friendly even with many particles.
+	struct PhysicsMaterialComponent
+	{
+		PhysicsMaterial material{};
 	};
 
-
-	enum class ColliderType {
-		Sphere,
-		Box
+	// Marks a particle as a member of a shape-matching rigid body. All particles sharing the
+	// same `rigidBodyId` will be treated as one rigid cluster — every step the solver fits a
+	// rigid transform to their predicted positions and pulls them back toward the rest shape.
+	struct RigidBodyMemberComponent
+	{
+		uint32_t rigidBodyId = 0; // arbitrary scene-defined id
+		glm::vec3 restLocalPos = {0.0f, 0.0f, 0.0f}; // rest position in the body's local frame
 	};
 
-	struct ColliderComponent {
-		ColliderType type;
-		glm::vec3 size; // radius for sphere, half-extents for box
+	// Per-rigid-body parameters (one entity per body; the body's id is referenced from member
+	// particles). The PhysicsSystem reads this at init to size the GPU buffers.
+	struct RigidBodyComponent
+	{
+		uint32_t rigidBodyId = 0;
+		float stiffness = 1.0f; // [0,1] fraction of the shape-matching correction applied per step
+	};
+
+	// Optional: attach to a rigid-body entity to draw the original source mesh at the body's
+	// shape-matched transform (centroid + orientation). When this is present, the renderer will
+	// SKIP drawing the body's constituent particles in Mesh/Both modes so the mesh isn't covered
+	// by a cloud of voxel spheres. The model/material live here so a body can be rendered as the
+	// bunny it was sampled from while still being simulated as XPBD particles.
+	struct RigidBodyVisualComponent
+	{
+		std::shared_ptr<Model> model;
+		std::shared_ptr<Material> material;
+		glm::vec3 meshScale{1.0f};            // applied on top of body's pose
+		glm::vec3 centroidOffset{0.0f};       // mesh space → body centroid alignment (rest cm in mesh space)
+	};
+
+	// Grid-topology cloth — stores the regular nu×nv layout of particle entities so the renderer
+	// can build a dynamic triangle mesh from their per-frame TransformComponent positions. The
+	// solver doesn't see this component; it's purely a rendering aid.
+	struct ClothComponent
+	{
+		std::vector<entt::entity> particles; // row-major, size = nu * nv
+		int nu = 0;
+		int nv = 0;
+		glm::vec4 color{ 0.85f, 0.30f, 0.55f, 1.0f };
 	};
 }
 

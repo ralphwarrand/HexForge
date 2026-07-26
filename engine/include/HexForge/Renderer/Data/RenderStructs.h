@@ -52,8 +52,9 @@ namespace Hex
 	struct FrameBuffer
 	{
 		GLuint frame_buffer{0};
-		GLuint texture{0};
-		GLuint depth_render_buffer{0};
+		GLuint texture{0};                // HDR colour (RGB16F)
+		GLuint depth_texture{0};          // GL_DEPTH_COMPONENT32F — sampleable for SSR / SSFR refraction
+		GLuint depth_render_buffer{0};    // (legacy field — kept zero now; removed in InitFrameBuffer)
 		unsigned int render_width{100}, render_height{100};
 	};
 }

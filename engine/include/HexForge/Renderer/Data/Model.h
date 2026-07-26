@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // STL
 #include <vector>
@@ -14,14 +14,15 @@ namespace Hex
     class Model
     {
     public:
-        // Loads all sub-meshes from `path` into the shared ResourceManager cache.
-        // Throws std::runtime_error if the file fails to load.
+        Model() = default;
         Model(const std::string& path);
+        explicit Model(std::vector<std::shared_ptr<Mesh>> in_meshes)
+            : meshes(std::move(in_meshes)) {}
 
-        // Draws all the sub-meshes in this model.
         void Draw() const;
 
         [[nodiscard]] const std::vector<std::shared_ptr<Mesh>> &GetMeshes() const { return meshes; }
+        void AddMesh(std::shared_ptr<Mesh> mesh) { meshes.push_back(std::move(mesh)); }
 
     private:
         std::vector<std::shared_ptr<Mesh> > meshes;
