@@ -64,7 +64,7 @@ namespace Hex
         bool m_wireframe_mode = false;
         glm::vec3 m_light_dir{ -0.5f, -1.0f, -0.5f };
         bool m_requestFocus = false;
-        RenderMode m_render_mode = RenderMode::ParticlesOnly;
+        RenderMode m_render_mode = RenderMode::MeshesOnly;
         void SetLightDir(const glm::vec3 &dir);
         void SetPhysicsSystem(PhysicsSystem* physics);
         void SetRenderMode(RenderMode mode);

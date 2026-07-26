@@ -675,8 +675,150 @@ namespace Hex
 
         m_cuda_manager.UnmapGLBuffers();
 #else
-        (void)entityManager;
-        (void)fixedDeltaTime;
+        if (fixedDeltaTime > 0.0f && m_num_particles > 0)
+        {
+            const int substeps = (m_substeps > 0) ? m_substeps : 1;
+            const float sub_dt = fixedDeltaTime / static_cast<float>(substeps);
+            auto& registry = entityManager.GetRegistry();
+
+            for (int sub = 0; sub < substeps; ++sub)
+            {
+                // 1. Predict positions (XPBD Integration)
+                for (auto entity : m_particle_entities) {
+                    auto& tc = registry.get<TransformComponent>(entity);
+                    auto& pc = registry.get<ParticleComponent>(entity);
+                    if (pc.inverseMass == 0.0f) continue;
+                    pc.velocity += m_gravity * sub_dt;
+                    tc.position += pc.velocity * sub_dt;
+                }
+
+                // 2. XPBD Distance Constraints Iterations
+                auto cview = registry.view<DistanceConstraintComponent>();
+                for (int iter = 0; iter < m_solverIterations; ++iter) {
+                    for (auto c_entity : cview) {
+                        const auto& c = cview.get<DistanceConstraintComponent>(c_entity);
+                        auto* tcA = registry.try_get<TransformComponent>(c.entityA);
+                        auto* tcB = registry.try_get<TransformComponent>(c.entityB);
+                        auto* pcA = registry.try_get<ParticleComponent>(c.entityA);
+                        auto* pcB = registry.try_get<ParticleComponent>(c.entityB);
+                        if (!tcA || !tcB) continue;
+                        float wA = pcA ? pcA->inverseMass : 0.0f;
+                        float wB = pcB ? pcB->inverseMass : 0.0f;
+                        float wSum = wA + wB;
+                        if (wSum <= 1e-7f) continue;
+
+                        glm::vec3 delta = tcA->position - tcB->position;
+                        float len = glm::length(delta);
+                        if (len <= 1e-7f) continue;
+
+                        float C = len - c.restDistance;
+                        glm::vec3 n = delta / len;
+                        float alpha_tilde = m_distanceCompliance / (sub_dt * sub_dt);
+                        float delta_lambda = -C / (wSum + alpha_tilde);
+
+                        if (wA > 0.0f) tcA->position += wA * delta_lambda * n;
+                        if (wB > 0.0f) tcB->position -= wB * delta_lambda * n;
+                    }
+
+                    // 3. XPBD Domain Wall Collisions
+                    for (auto entity : m_particle_entities) {
+                        auto& tc = registry.get<TransformComponent>(entity);
+                        auto& pc = registry.get<ParticleComponent>(entity);
+                        if (pc.inverseMass == 0.0f) continue;
+
+                        const float r = m_particleRadius;
+                        glm::vec3 min_bound = m_domain.min + glm::vec3(r);
+                        glm::vec3 max_bound = m_domain.max - glm::vec3(r);
+
+                        tc.position = glm::clamp(tc.position, min_bound, max_bound);
+                    }
+                }
+
+                // 4. Shape Matching for Sampled Rigid Bodies (Müller et al. 2005 / Macklin 2019 XPBD)
+                if (m_num_rigid_bodies > 0) {
+                    m_rigid_transforms.resize(m_num_rigid_bodies);
+                    std::vector<glm::vec3> centroids(m_num_rigid_bodies, glm::vec3(0.0f));
+                    std::vector<int> counts(m_num_rigid_bodies, 0);
+
+                    for (auto entity : m_particle_entities) {
+                        auto* rbm = registry.try_get<RigidBodyMemberComponent>(entity);
+                        if (!rbm) continue;
+                        uint32_t bid = rbm->rigidBodyId - 1;
+                        if (bid < m_num_rigid_bodies) {
+                            const auto& tc = registry.get<TransformComponent>(entity);
+                            centroids[bid] += tc.position;
+                            counts[bid]++;
+                        }
+                    }
+
+                    for (uint32_t b = 0; b < m_num_rigid_bodies; ++b) {
+                        if (counts[b] > 0) centroids[b] /= static_cast<float>(counts[b]);
+                    }
+
+                    // Covariance A = sum (p_i - cm) * (r_i^0)^T
+                    std::vector<glm::mat3> cov(m_num_rigid_bodies, glm::mat3(0.0f));
+                    for (auto entity : m_particle_entities) {
+                        auto* rbm = registry.try_get<RigidBodyMemberComponent>(entity);
+                        if (!rbm) continue;
+                        uint32_t bid = rbm->rigidBodyId - 1;
+                        if (bid < m_num_rigid_bodies) {
+                            const auto& tc = registry.get<TransformComponent>(entity);
+                            glm::vec3 p_local = tc.position - centroids[bid];
+                            cov[bid] += glm::outerProduct(p_local, rbm->restLocalPos);
+                        }
+                    }
+
+                    // Extract rotation R via iterative polar decomposition
+                    std::vector<glm::quat> orientations(m_num_rigid_bodies, glm::quat(1,0,0,0));
+                    for (uint32_t b = 0; b < m_num_rigid_bodies; ++b) {
+                        if (counts[b] == 0) continue;
+                        glm::mat3 R = cov[b];
+                        if (glm::abs(glm::determinant(R)) > 1e-7f) {
+                            for (int iter = 0; iter < 5; ++iter) {
+                                glm::mat3 R_inv_T = glm::transpose(glm::inverse(R));
+                                R = 0.5f * (R + R_inv_T);
+                            }
+                            orientations[b] = glm::quat_cast(R);
+                        }
+                        m_rigid_transforms[b].centroid = centroids[b];
+                        m_rigid_transforms[b].orientation = orientations[b];
+
+                        // Target position blend
+                        float stiffness = 0.95f;
+                        for (auto entity : m_particle_entities) {
+                            auto* rbm = registry.try_get<RigidBodyMemberComponent>(entity);
+                            if (!rbm || (rbm->rigidBodyId - 1) != b) continue;
+                            auto& tc = registry.get<TransformComponent>(entity);
+                            glm::vec3 target_pos = centroids[b] + R * rbm->restLocalPos;
+                            tc.position += stiffness * (target_pos - tc.position);
+                        }
+                    }
+                }
+
+                // 5. Update Particle Velocities
+                for (auto entity : m_particle_entities) {
+                    auto& tc = registry.get<TransformComponent>(entity);
+                    auto& pc = registry.get<ParticleComponent>(entity);
+                    if (pc.inverseMass == 0.0f) continue;
+                    pc.velocity = (tc.position - pc.predictedPosition) / sub_dt;
+                    pc.velocity *= std::pow(m_globalDamping, sub_dt);
+                    pc.predictedPosition = tc.position;
+                }
+            }
+
+            // Upload particle positions to VBO for rendering
+            if (m_particle_vbo && m_num_particles > 0) {
+                std::vector<glm::vec3> host_pos;
+                host_pos.reserve(m_num_particles);
+                for (auto entity : m_particle_entities) {
+                    const auto& tc = registry.get<TransformComponent>(entity);
+                    host_pos.push_back(tc.position);
+                }
+                glBindBuffer(GL_ARRAY_BUFFER, m_particle_vbo);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, host_pos.size() * sizeof(glm::vec3), host_pos.data());
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+            }
+        }
 #endif
 
         if (m_syncTransforms) SyncTransformsFromGPU(entityManager);
