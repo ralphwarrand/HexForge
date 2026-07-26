@@ -1,4 +1,4 @@
-﻿# This file manages the automatic download and configuration of all third-party libraries.
+# This file manages the automatic download and configuration of all third-party libraries.
 # It uses CMake's FetchContent module to clone them from their Git repositories.
 
 # --- GLM (OpenGL Mathematics) -----------------------------------------------
@@ -69,9 +69,12 @@ target_include_directories(stb_truetype INTERFACE ${stb_SOURCE_DIR})
 FetchContent_Declare(
         assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
-        GIT_TAG v5.2.5
+        GIT_TAG v5.3.1
 )
 # Disable building tests and other unnecessary parts for our use case.
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ZLIB ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_MINIZIP ON CACHE BOOL "" FORCE)
+set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(assimp)

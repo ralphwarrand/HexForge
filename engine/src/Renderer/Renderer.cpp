@@ -6,6 +6,7 @@
 #include "HexForge/Renderer/Camera.h"
 #include "HexForge/Physics/PhysicsSystem.h"
 #include "HexForge/Renderer/DebugRenderer.h"
+#include <format>
 
 namespace Hex
 {

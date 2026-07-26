@@ -72,25 +72,15 @@ endif()
 # --- Compile Definitions ---------------------------------------------------
 target_compile_definitions(HexForgeEngine
 		PUBLIC
-		# These definitions are needed by anyone consuming the engine.
 		GLFW_INCLUDE_NONE=1
 		ENTT_INCLUDE_NATVIS
-		# Define a default resource path. Debug builds will point to the sandbox
-		# resources for easy development, while Release builds will point to a
-		# relative path for deployment. This can be overridden by the final executable.
+		IMGUI_DEFINE_MATH_OPERATORS
+		IMGUI_IMPL_OPENGL_LOADER_CUSTOM
 		$<$<CONFIG:Debug>:RESOURCES_PATH="${CMAKE_SOURCE_DIR}/examples/sandbox/resources/">
 		$<$<CONFIG:Release>:RESOURCES_PATH="./resources/">
 )
 
 if(MSVC)
-	target_compile_options(HexForgeEngine PRIVATE /arch:AVX2)
-	target_compile_definitions(HexForgeEngine PRIVATE
-			_CRT_SECURE_NO_WARNINGS
-			# This is required by ImGui to enable math operators for its vector types.
-			IMGUI_DEFINE_MATH_OPERATORS
-			# This tells ImGui's OpenGL backend to use the loader we provide (GLAD)
-			# instead of its own, preventing function redefinition warnings/errors.
-			IMGUI_IMPL_OPENGL_LOADER_CUSTOM
-	)
+	target_compile_definitions(HexForgeEngine PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
