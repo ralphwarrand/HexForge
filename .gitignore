@@ -1,7 +1,9 @@
 /out
+.cache/
 bin/
 build/
 /.vs
 .idea/
 CMakeSettings.json
 Makefile
+.idx
