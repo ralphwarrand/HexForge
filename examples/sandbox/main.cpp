@@ -25,7 +25,7 @@ namespace
                                 const Hex::PhysicsMaterial& physMat,
                                 float invMass,
                                 float visualRadius,
-                                bool attach_visual = true)
+                                bool attach_visual = false)
     {
         auto e = em.CreateEntity();
         em.AddComponent<Hex::TransformComponent>(e,

@@ -872,7 +872,7 @@ namespace Hex
 		const bool skip_rigid_visuals  = (m_render_mode == RenderMode::ParticlesOnly);
 
 		auto include = [&](entt::entity e) {
-			if (skip_particles && m_registry.any_of<ParticleComponent>(e)) return false;
+			if (m_registry.any_of<ParticleComponent>(e)) return false;
 			if (skip_rigid_visuals && m_registry.any_of<RigidBodyVisualComponent>(e)) return false;
 			return true;
 		};
