@@ -7,3 +7,4 @@ build/
 CMakeSettings.json
 Makefile
 .idx
+log.txt
