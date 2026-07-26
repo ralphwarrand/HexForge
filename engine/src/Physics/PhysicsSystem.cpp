@@ -739,37 +739,48 @@ namespace Hex
                     }
                 }
 
-                // 3b. Particle-Particle Contact Resolution (Volume Preservation, run once per substep)
+                // 3b. Particle-Particle Contact Resolution (Volume Preservation, O(1) Contiguous Spatial Grid)
                 const float min_dist = 2.0f * m_particleRadius;
                 const float min_dist2 = min_dist * min_dist;
                 const size_t num_p = m_particle_entities.size();
-                float cell_size = min_dist * 1.2f;
-                std::unordered_map<int64_t, std::vector<size_t>> grid;
-                grid.reserve(num_p);
+                const float cell_size = min_dist * 1.2f;
+
+                glm::vec3 domain_size = m_domain.max - m_domain.min;
+                int dim_x = std::max(1, static_cast<int>(std::ceil(domain_size.x / cell_size)));
+                int dim_y = std::max(1, static_cast<int>(std::ceil(domain_size.y / cell_size)));
+                int dim_z = std::max(1, static_cast<int>(std::ceil(domain_size.z / cell_size)));
+                int total_cells = dim_x * dim_y * dim_z;
+
+                std::vector<int> head(total_cells, -1);
+                std::vector<int> next(num_p, -1);
+
                 for (size_t i = 0; i < num_p; ++i) {
                     const auto& tc = registry.get<TransformComponent>(m_particle_entities[i]);
-                    int64_t cx = static_cast<int64_t>(std::floor(tc.position.x / cell_size));
-                    int64_t cy = static_cast<int64_t>(std::floor(tc.position.y / cell_size));
-                    int64_t cz = static_cast<int64_t>(std::floor(tc.position.z / cell_size));
-                    int64_t hash = (cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791);
-                    grid[hash].push_back(i);
+                    int cx = std::clamp(static_cast<int>((tc.position.x - m_domain.min.x) / cell_size), 0, dim_x - 1);
+                    int cy = std::clamp(static_cast<int>((tc.position.y - m_domain.min.y) / cell_size), 0, dim_y - 1);
+                    int cz = std::clamp(static_cast<int>((tc.position.z - m_domain.min.z) / cell_size), 0, dim_z - 1);
+                    int c_idx = cx + dim_x * (cy + dim_y * cz);
+                    next[i] = head[c_idx];
+                    head[c_idx] = static_cast<int>(i);
                 }
+
                 for (size_t i = 0; i < num_p; ++i) {
                     auto eA = m_particle_entities[i];
                     auto& tcA = registry.get<TransformComponent>(eA);
                     auto& pcA = registry.get<ParticleComponent>(eA);
-                    int64_t cx = static_cast<int64_t>(std::floor(tcA.position.x / cell_size));
-                    int64_t cy = static_cast<int64_t>(std::floor(tcA.position.y / cell_size));
-                    int64_t cz = static_cast<int64_t>(std::floor(tcA.position.z / cell_size));
+                    int cx = std::clamp(static_cast<int>((tcA.position.x - m_domain.min.x) / cell_size), 0, dim_x - 1);
+                    int cy = std::clamp(static_cast<int>((tcA.position.y - m_domain.min.y) / cell_size), 0, dim_y - 1);
+                    int cz = std::clamp(static_cast<int>((tcA.position.z - m_domain.min.z) / cell_size), 0, dim_z - 1);
 
                     for (int dx = -1; dx <= 1; ++dx)
                     for (int dy = -1; dy <= 1; ++dy)
                     for (int dz = -1; dz <= 1; ++dz) {
-                        int64_t hash = ((cx + dx) * 73856093) ^ ((cy + dy) * 19349663) ^ ((cz + dz) * 83492791);
-                        auto git = grid.find(hash);
-                        if (git == grid.end()) continue;
-                        for (size_t j : git->second) {
-                            if (j <= i) continue;
+                        int nx = cx + dx, ny = cy + dy, nz = cz + dz;
+                        if (nx < 0 || nx >= dim_x || ny < 0 || ny >= dim_y || nz < 0 || nz >= dim_z) continue;
+                        int neighbor_cell = nx + dim_x * (ny + dim_y * nz);
+
+                        for (int j = head[neighbor_cell]; j != -1; j = next[j]) {
+                            if (static_cast<size_t>(j) <= i) continue;
                             auto eB = m_particle_entities[j];
                             auto& tcB = registry.get<TransformComponent>(eB);
                             auto& pcB = registry.get<ParticleComponent>(eB);
@@ -899,11 +910,10 @@ namespace Hex
 
     void PhysicsSystem::SyncTransformsFromGPU(EntityManager& entityManager)
     {
-        std::vector<glm::vec3> host_positions(m_num_particles);
 #if HEX_ENABLE_CUDA
+        std::vector<glm::vec3> host_positions(m_num_particles);
         cudaMemcpy(host_positions.data(), d_predicted_positions,
                    m_num_particles * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
-#endif
 
         auto& registry = entityManager.GetRegistry();
         for (uint32_t i = 0; i < m_num_particles; ++i) {
@@ -912,6 +922,7 @@ namespace Hex
                 t->position = host_positions[i];
             }
         }
+#endif
     }
 
     void PhysicsSystem::SetMousePicker(entt::entity entity) { m_mousePickerEntity = entity; }
@@ -969,9 +980,9 @@ namespace Hex
 #if HEX_ENABLE_CUDA
                     cudaMemcpy(hostb.data(), d_rigid_bodies,
                                m_num_rigid_bodies * sizeof(RigidBodyGPU), cudaMemcpyDeviceToHost);
-#endif
                     m_picked_rigid_first = hostb[body_idx].first_particle;
                     m_picked_rigid_count = hostb[body_idx].particle_count;
+#endif
                 }
             }
         }
@@ -980,15 +991,14 @@ namespace Hex
 
     void PhysicsSystem::SyncRigidBodyTransformsFromGPU()
     {
+#if HEX_ENABLE_CUDA
         if (m_num_rigid_bodies == 0) {
             m_rigid_transforms.clear();
             return;
         }
         std::vector<RigidBodyGPU> host(m_num_rigid_bodies);
-#if HEX_ENABLE_CUDA
         cudaMemcpy(host.data(), d_rigid_bodies,
                    m_num_rigid_bodies * sizeof(RigidBodyGPU), cudaMemcpyDeviceToHost);
-#endif
         m_rigid_transforms.resize(m_num_rigid_bodies);
         for (uint32_t i = 0; i < m_num_rigid_bodies; ++i) {
             m_rigid_transforms[i].centroid    = glm::vec3(host[i].position);
@@ -996,5 +1006,6 @@ namespace Hex
             const glm::vec4 q = host[i].orientation;
             m_rigid_transforms[i].orientation = glm::quat(q.w, q.x, q.y, q.z);
         }
+#endif
     }
 }
