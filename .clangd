@@ -1,0 +1,21 @@
+CompileFlags:
+  Add: [
+    "-I${CUDA_PATH}/include",
+    "--cuda-path=${CUDA_PATH}",
+    "--cuda-gpu-arch=sm_75",
+    "-Wno-unknown-cuda-version",
+    "-nocudalib"
+  ]
+  Remove: [
+    "-forward-unknown-to-host-compiler",
+    "-Xcompiler.*",
+    "--generate-code.*",
+    "-Fd.*",
+    "-FS",
+    "-O[0-9].*",
+    "-Ob.*",
+    "-MD",
+    "-EHsc",
+    "-Zi",
+    "-RTC.*"
+  ]

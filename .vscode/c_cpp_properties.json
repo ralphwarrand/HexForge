@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/engine/include/**",
+                "${workspaceFolder}/out/build/_deps/imgui-src/**",
+                "${workspaceFolder}/out/build/_deps/entt-src/src/**",
+                "${workspaceFolder}/out/build/_deps/glm-src/**",
+                "${workspaceFolder}/thirdparty/glad/include/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "GLFW_INCLUDE_NONE=1",
+                "ENTT_INCLUDE_NATVIS",
+                "IMGUI_DEFINE_MATH_OPERATORS",
+                "IMGUI_IMPL_OPENGL_LOADER_CUSTOM"
+            ],
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
