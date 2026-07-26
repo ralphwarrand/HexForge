@@ -20,6 +20,7 @@ namespace Hex
 	class Renderer;
 	class UIManager;
 	class EntityManager;
+	class CudaManager;
 
 	using SceneBuilder = std::function<void(EntityManager&, PhysicsSystem&)>;
 
@@ -68,6 +69,7 @@ namespace Hex
 
 		// Renderer declared FIRST, so it is destroyed LAST.
 		std::unique_ptr<Renderer> m_renderer{nullptr};
+		std::unique_ptr<CudaManager> m_cuda_manager{nullptr};
 
 		std::unique_ptr<InputManager> m_input_manager{nullptr};
 		std::unique_ptr<EntityManager> m_entity_manager{nullptr};

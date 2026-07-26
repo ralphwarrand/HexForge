@@ -1,11 +1,12 @@
-﻿#pragma once
+#pragma once
 
 #include <glm/glm.hpp>
 
 // Forward-declare GLFWwindow to avoid including the GLFW header here
 struct GLFWwindow;
 
-namespace Hex {
+namespace Hex
+{
 
     // Forward-declare Application to avoid circular dependencies
     class Application;

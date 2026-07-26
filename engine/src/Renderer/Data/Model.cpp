@@ -1,4 +1,4 @@
-﻿// Hex
+// Hex
 #include "HexForge/pch.h"
 #include "HexForge/Renderer/Data/Model.h"
 

@@ -1,4 +1,4 @@
-﻿// Hex
+// Hex
 #include "HexForge/pch.h"
 #include "HexForge/Gameplay/InputManager.h"
 #include "HexForge/Core/Application.h"

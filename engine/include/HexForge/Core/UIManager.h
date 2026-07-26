@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "HexForge/Core/Console.h"
 #include "HexForge/Physics/PhysicsSystem.h"
@@ -8,7 +8,7 @@ struct GLFWwindow;
 
 namespace Hex
 {
-
+    struct ProfileResult;
 
     class UIManager
     {
@@ -22,6 +22,8 @@ namespace Hex
         void RenderUI(float deltaTime);
 
         bool IsViewportHovered() const { return m_isViewportHovered; }
+        glm::vec2 GetViewportScreenPos()  const { return m_viewportScreenPos; }
+        glm::vec2 GetViewportScreenSize() const { return m_viewportScreenSize; }
 
     private:
         void SetStyle();
@@ -34,11 +36,15 @@ namespace Hex
         void ShowLightingTool();
         void ShowViewport();
 
+        void RenderProfileNode(const ProfileResult& node);
+
         // Member variables
         GLFWwindow* m_window;
         PhysicsSystem& m_physicsSystem;
         Renderer& m_renderer;
         std::shared_ptr<Console> m_console;
+
+        std::vector<float> m_frameTimeHistory;
 
         // UI State
         bool m_showMetrics = true;
@@ -48,6 +54,8 @@ namespace Hex
 
         bool m_isViewportHovered = false;
         ImVec2 m_viewportSize = { 0, 0 };
+        glm::vec2 m_viewportScreenPos{0.0f};
+        glm::vec2 m_viewportScreenSize{0.0f};
 
         glm::vec3 m_light_dir = glm::vec3(0.5f, -1.f, 0.5f);
     };

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Third-party
 #include <glm/glm.hpp>

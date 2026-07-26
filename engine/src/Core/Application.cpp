@@ -8,6 +8,10 @@
 #include "HexForge/Gameplay/EntityManager.h"
 #include "HexForge/Gameplay/InputManager.h"
 #include "HexForge/Physics/PhysicsSystem.h"
+#include "HexForge/Renderer/Camera.h"
+#include "HexForge/Core/Profiler.h"
+#include "HexForge/Core/CudaManager.h"
+#include "HexForge/Renderer/DebugRenderer.h"
 
 namespace Hex
 {
@@ -18,7 +22,7 @@ namespace Hex
 
 	Application::~Application()
 	{
-
+		DebugRenderer::Shutdown();
 	}
 
 	std::unique_ptr<InputManager>& Application::GetInputManager()
@@ -70,46 +74,58 @@ namespace Hex
 
 	void Application::ProcessMousePicking()
 	{
-		// Get the ray from the current mouse position
 		auto [ray_origin, ray_dir] = GetMouseRay();
 
-		// Define a virtual plane to interact with.
-		// Here, it's a horizontal plane at y=5. You can change this.
-		glm::vec3 plane_origin = {0.0f, 5.0f, 0.0f};
-		glm::vec3 plane_normal = {0.0f, 1.0f, 0.0f}; // Y-up
+		// Left-click: pick a particle. While held, drag it via a critically-damped spring.
+		// Release: drop. The "target depth" stays at the particle's pick-time distance so the
+		// mouse moves on a camera-facing plane (no Y bias).
+		const bool lmb_down  = m_input_manager->IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+		const bool lmb_press = m_input_manager->IsMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT);
 
-		// Calculate the intersection of the ray with the plane
-		// using the formula: t = dot(plane_origin - ray_origin, plane_normal) / dot(ray_dir, plane_normal)
-		float denominator = glm::dot(ray_dir, plane_normal);
+		static float s_pick_depth = 5.0f; // distance from camera to picked particle at grab time
 
-		// Ensure the ray is not parallel to the plane
-		if (glm::abs(denominator) > 1e-6) {
-			float t = glm::dot(plane_origin - ray_origin, plane_normal) / denominator;
-
-			// If t is positive, the intersection is in front of the camera
-			if (t >= 0) {
-				// Calculate the 3D intersection point
-				glm::vec3 intersection_point = ray_origin + ray_dir * t;
-
-				// Update the physics system with this 3D position
-				m_physics_system->UpdateMousePickerPosition(*m_entity_manager, intersection_point);
+		if (lmb_press) {
+			// Snap to the nearest particle within ~0.5 m of the ray.
+			uint32_t hit = m_physics_system->PickParticleByRay(ray_origin, ray_dir, 0.5f);
+			if (hit != 0xFFFFFFFFu) {
+				glm::vec3 wp = m_physics_system->GetPickedParticleWorldPos();
+				s_pick_depth = glm::length(wp - ray_origin);
 			}
+		}
+
+		if (m_physics_system->HasPickedParticle() && lmb_down) {
+			// Drag target: point along the cursor ray at the original pick depth.
+			glm::vec3 target = ray_origin + glm::normalize(ray_dir) * s_pick_depth;
+			m_physics_system->SetPickTarget(target);
+		}
+		if (!lmb_down) {
+			m_physics_system->ReleasePick();
 		}
 	}
 
 	std::pair<glm::vec3, glm::vec3> Application::GetMouseRay()
 	{
-		// Get mouse position and window dimensions
-		glm::vec2 cursorPos = m_input_manager->GetCursorPos();
-		float screenX = cursorPos.x;
-		float screenY = cursorPos.y;
-		int width = m_specification.width;
-		int height = m_specification.height;
+		// We must compare cursor and viewport-rect in the SAME coordinate frame. ImGui's
+		// multi-viewport mode places ImGui windows in OS-screen coordinates, while GLFW's
+		// cursor pos is in GLFW-window content-area coordinates — those differ as soon as
+		// the user docks the viewport into a separate OS window. Take both from ImGui so we
+		// always agree.
+		ImVec2 mouse_im = ImGui::GetMousePos();
+		glm::vec2 cursorPos(mouse_im.x, mouse_im.y);
 
-		// Convert screen coordinates to Normalized Device Coordinates (NDC)
-		// x and y are now in the range [-1, 1]. z=-1 is the near plane.
-		float ndcX = (2.0f * screenX) / width - 1.0f;
-		float ndcY = 1.0f - (2.0f * screenY) / height; // Y is inverted
+		glm::vec2 vp_origin = m_ui_manager ? m_ui_manager->GetViewportScreenPos()
+		                                   : glm::vec2(0.0f);
+		glm::vec2 vp_size   = m_ui_manager ? m_ui_manager->GetViewportScreenSize()
+		                                   : glm::vec2(float(m_specification.width),
+		                                               float(m_specification.height));
+		if (vp_size.x <= 1.0f || vp_size.y <= 1.0f) {
+			vp_origin = glm::vec2(0.0f);
+			vp_size   = glm::vec2(float(m_specification.width), float(m_specification.height));
+		}
+
+		glm::vec2 local = cursorPos - vp_origin;
+		float ndcX = (2.0f * local.x) / vp_size.x - 1.0f;
+		float ndcY = 1.0f - (2.0f * local.y) / vp_size.y;
 		float ndcZ = -1.0f;
 		glm::vec4 ray_ndc_start = glm::vec4(ndcX, ndcY, ndcZ, 1.0f);
 
@@ -142,26 +158,39 @@ namespace Hex
 
 		// 2. World Systems are created
 		m_entity_manager = std::make_unique<EntityManager>();
-		m_physics_system = std::make_unique<PhysicsSystem>();
 
 		// 3. Input Manager is created
 		m_input_manager = std::make_unique<InputManager>();
 
-		// 4. Renderer creates the GLFW window
+		// 4. Renderer creates the GLFW window and OpenGL context
 		m_renderer = std::make_unique<Renderer>(m_entity_manager->GetRegistry() ,application_spec, m_console);
 
+		// 5. Cuda Manager is created and initialized (requires OpenGL context)
+		m_cuda_manager = std::make_unique<CudaManager>();
+		m_cuda_manager->Init();
 
-		// 5. This tells GLFW to associate our 'Application' instance ('this') with the window.
+		// 6. Physics System is created (requires CudaManager)
+		m_physics_system = std::make_unique<PhysicsSystem>(*m_cuda_manager);
+
+		DebugRenderer::Init();
+
+		// 7. This tells GLFW to associate our 'Application' instance ('this') with the window.
 		glfwSetWindowUserPointer(m_renderer->GetWindow(), this);
 
-		// 6. InputManager sets the MASTER callbacks for the window
+		// 8. InputManager sets the MASTER callbacks for the window
 		Hex::InputManager::Init(m_renderer->GetWindow());
 
-		// 7. UIManager initializes ImGui, which will now use the forwarded events
+		// 9. UIManager initializes ImGui, which will now use the forwarded events
 		m_ui_manager = std::make_unique<UIManager>(m_renderer->GetWindow(), m_console, *m_physics_system, *m_renderer);
 
-		// 8. We build the scene
+		// 10. We build the scene
 		m_sceneBuilder(*m_entity_manager, *m_physics_system);
+
+		// 11. Initialize the physics system's GPU resources
+		m_physics_system->Init(*m_entity_manager);
+
+		// 12. Hand the renderer a non-owning ref so it can read the particle VBO + materials.
+		m_renderer->SetPhysicsSystem(m_physics_system.get());
 
 		m_running = true;
 	}
@@ -173,8 +202,15 @@ namespace Hex
 
 	    while (m_running && !glfwWindowShouldClose(m_renderer->GetWindow()))
 	    {
-	        // Poll for any new window/input events FIRST
-	        glfwPollEvents();
+	    	DebugRenderer::BeginFrame();
+
+	    	Profiler::Get().BeginFrame();
+
+	    	// Poll for any new window/input events FIRST
+	    	{
+	    		PROFILE_SCOPE("Poll Events");
+	    		glfwPollEvents();
+			}
 
 	        // Calculate delta time
 	        const float current_frame = static_cast<float>(glfwGetTime());
@@ -183,7 +219,10 @@ namespace Hex
 
 	        // Start the ImGui frame
 	        m_ui_manager->BeginFrame();
-	        m_ui_manager->RenderUI(delta_time);
+	    	{
+	    		PROFILE_SCOPE("UI Rendering");
+				m_ui_manager->RenderUI(delta_time);
+	    	}
 
 	        // Get ImGui IO state AFTER rendering the UI
 	        ImGuiIO& io = ImGui::GetIO();
@@ -200,6 +239,22 @@ namespace Hex
 	            SetGameplayMode(!m_gameplayMode); // Toggle the mode
 	        }
 
+	        // Dedicated hotkeys for each render mode — no more "what mode am I in" guessing.
+	        //   1 = Particles only      (cheap, voxel spheres)
+	        //   2 = Meshes / SSFR water (the pretty mode)
+	        //   3 = Both (debug overlay)
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_1))
+	            m_renderer->SetRenderMode(RenderMode::ParticlesOnly);
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_2))
+	            m_renderer->SetRenderMode(RenderMode::MeshesOnly);
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_3))
+	            m_renderer->SetRenderMode(RenderMode::Both);
+	        // F still cycles for muscle-memory.
+	        if (m_input_manager->IsKeyJustPressed(GLFW_KEY_F))
+	        {
+	            int next = (static_cast<int>(m_renderer->m_render_mode) + 1) % 3;
+	            m_renderer->SetRenderMode(static_cast<RenderMode>(next));
+	        }
 
 	        // --- CONTEXT-SENSITIVE INPUT ---
 	        if (m_gameplayMode)
@@ -212,29 +267,40 @@ namespace Hex
 	        {
 	            // In UI mode, we only process game actions (like picking) if ImGui isn't
 	            // using the mouse for its own widgets and the mouse is over the viewport.
-	            if (m_ui_manager->IsViewportHovered() && !io.WantCaptureMouse)
+	            if (m_ui_manager->IsViewportHovered())
 	            {
-	                if (m_input_manager->IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
-	                {
-	                    ProcessMousePicking();
-	                }
+	            	ProcessMousePicking();
 	            }
 	        }
 
 	        // --- WORLD AND RENDER UPDATES ---
-	        m_physics_system->Tick(*m_entity_manager, delta_time, current_frame);
+		    {
+			    PROFILE_SCOPE("Physics Tick");
+	    		m_physics_system->Tick(*m_entity_manager, delta_time, current_frame);
+		    }
 
 	        // Render 3D world to framebuffer
-	        m_renderer->RenderWorld(delta_time);
+		    {
+			    PROFILE_SCOPE("World Rendering");
+	    		m_renderer->RenderWorld(delta_time);
+		    }
 
 	        // Finalize and render the UI
-	        m_ui_manager->EndFrame();
+		    {
+			    PROFILE_SCOPE("UI EndFrame");
+	    		m_ui_manager->EndFrame();
+		    }
 
 	        // Swap buffers
-	        glfwSwapBuffers(m_renderer->GetWindow());
+		    {
+			    PROFILE_SCOPE("Swap Buffers");
+	    		glfwSwapBuffers(m_renderer->GetWindow());
+		    }
 
 	        // This snapshots the input state for the NEXT frame.
 	        m_input_manager->Update();
+
+	    	Profiler::Get().EndFrame();
 	    }
 	}
 }

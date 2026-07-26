@@ -1,6 +1,6 @@
-﻿//Hex
+//Hex
 #include "HexForge/pch.h"
-#include "Renderer/Shader.h"
+#include "HexForge/Renderer/Shader.h"
 #include "HexForge/Core/Logger.h"
 
 //Lib

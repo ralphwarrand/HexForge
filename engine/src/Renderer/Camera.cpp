@@ -1,5 +1,5 @@
-﻿//Hex
-#include "pch.h"
+//Hex
+#include "HexForge/pch.h"
 #include "HexForge/Renderer/Camera.h"
 #include "HexForge/Gameplay/InputManager.h"
 
