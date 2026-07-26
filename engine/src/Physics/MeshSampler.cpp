@@ -117,8 +117,13 @@ namespace Hex::MeshSampler
             //    triangle, not the full Möller-Trumbore.
             const auto tris = BuildTriYZ(verts_world, idx);
 
-            const float s    = spacing;
-            const float half = 0.5f * spacing;
+            glm::vec3 extent = mx - mn;
+            float max_extent = std::max({ extent.x, extent.y, extent.z });
+            float s = spacing;
+            if (max_extent > 0.0f) {
+                s = std::max(s, max_extent / 6.0f);
+            }
+            const float half = 0.5f * s;
             glm::ivec3 gmin = glm::ivec3(std::floor((mn.x) / s),
                                          std::floor((mn.y) / s),
                                          std::floor((mn.z) / s));
@@ -152,6 +157,17 @@ namespace Hex::MeshSampler
             for (auto& p : world_positions) {
                 out.particles.push_back({ p, p - centroid });
             }
+
+            if (out.particles.size() > 300) {
+                size_t stride = (out.particles.size() + 299) / 300;
+                std::vector<SampledRigidParticle> culled;
+                culled.reserve(300);
+                for (size_t i = 0; i < out.particles.size(); i += stride) {
+                    culled.push_back(out.particles[i]);
+                }
+                out.particles = std::move(culled);
+            }
+
             return out;
         }
     }

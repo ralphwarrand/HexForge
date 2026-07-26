@@ -280,7 +280,7 @@ int main()
         glm::mat4 cube_xform = glm::translate(glm::mat4(1.0f), cube_origin)
                              * glm::scale(glm::mat4(1.0f), cube_scale);
         auto sampled_cube = Hex::MeshSampler::VoxelizeFromFile(
-            RESOURCES_PATH "models/cube.obj", cube_xform, spacing * 0.8f);
+            RESOURCES_PATH "models/cube.obj", cube_xform, spacing * 1.5f);
         SpawnSampledRigidBody(em, /*id*/1, sampled_cube,
             Hex::ResourceManager::LoadModel(RESOURCES_PATH "models/cube.obj"),
             defaultMat, cube_scale, cube_origin,
@@ -289,11 +289,11 @@ int main()
 
         // -------- Rigid sphere — falls into the water --------
         glm::vec3 sphere_origin{ 0.0f, 2.5f, 0.0f };
-        glm::vec3 sphere_scale (0.7f);
+        glm::vec3 sphere_scale (0.15f);
         glm::mat4 sphere_xform = glm::translate(glm::mat4(1.0f), sphere_origin)
                                * glm::scale(glm::mat4(1.0f), sphere_scale);
         auto sampled_sphere = Hex::MeshSampler::VoxelizeFromFile(
-            RESOURCES_PATH "models/sphere.obj", sphere_xform, spacing * 0.8f);
+            RESOURCES_PATH "models/sphere.obj", sphere_xform, spacing * 1.5f);
         SpawnSampledRigidBody(em, /*id*/2, sampled_sphere,
             Hex::ResourceManager::LoadModel(RESOURCES_PATH "models/sphere.obj"),
             defaultMat, sphere_scale, sphere_origin,
@@ -316,7 +316,7 @@ int main()
         glm::mat4 bunny_xform = glm::translate(glm::mat4(1.0f), bunny_origin)
                               * glm::scale(glm::mat4(1.0f), bunny_scale);
         auto sampled_bunny = Hex::MeshSampler::VoxelizeFromFile(
-            RESOURCES_PATH "models/bunny.obj", bunny_xform, spacing * 0.8f);
+            RESOURCES_PATH "models/bunny.obj", bunny_xform, spacing * 1.5f);
         SpawnSampledRigidBody(em, /*id*/3, sampled_bunny,
             Hex::ResourceManager::LoadModel(RESOURCES_PATH "models/bunny.obj"),
             defaultMat, bunny_scale, bunny_origin,
@@ -329,7 +329,7 @@ int main()
         water.rest_density = fluid_rest_density;   // kernel-consistent — see above
         SpawnFluidBlock(em,
             { ps.m_domain.min.x + 0.2f, ps.m_domain.min.y + 0.2f, ps.m_domain.min.z + 0.4f },
-            { 14, 22, 22 }, spacing, defaultMat, water, particle_radius,
+            { 10, 12, 12 }, spacing, defaultMat, water, particle_radius,
             rigid_positions, /*clearance=*/ particle_radius * 2.5f);
 
         // -------- Cloth banner (3x2 m) hanging off the back wall --------
